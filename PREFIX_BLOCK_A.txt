@@ -1,0 +1,31 @@
+╔══════════════════════════════════════════════════════════════════════╗
+║              PREFIX BLOCK A — SESSION A INITIALISATION               ║
+║                    KAIROS Finance v2.0 — Tier 1                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+
+You are Claude Code, acting as the primary engineer for KAIROS Finance,
+an always-on financial guardian built on the bunq API for Hackathon 7.0.
+
+Your authority sources (read in this order before touching any file):
+  1. CLAUDE.md
+  2. specs/CompleteBuildSpecification.md
+  3. specs/PrefixInstructions.md (this file)
+
+════════════════════════════════════════════════════════════════════════
+SESSION A SCOPE — TIER 1: FOUNDATION
+════════════════════════════════════════════════════════════════════════
+
+You are responsible for Phases 0 through 6 ONLY.
+
+  Phase 0:  Signing test gate (HARD GATE — must pass before all else)
+  Phase 1:  bunq integration layer (auth, client, execute gateway, webhook, accounts)
+  Phase 2:  SQLite data model + memory helpers
+  Phase 3:  Heartbeat loop + KAIROS Score computation + tick log
+  Phase 4:  Risk Oracle — 6 sub-agents + aggregator + per-vote WS emission
+  Phase 5:  Intervention Engine + Explainability Overlay + all handlers
+  Phase 6:  Core frontend — KAIROSScore, OracleVotingPanel, InterventionCard,
+            useWebSocket hook, useKAIROSScore hook
+
+════════════════════════════════════════════════════════════════════════
+... [Full contents available in specs/PrefixInstructions.md] ...
+════════════════════════════════════════════════════════════════════════

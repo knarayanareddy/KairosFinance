@@ -1,0 +1,16 @@
+{
+  "name": "kairos-finance",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build"
+  },
+  "workspaces": [
+    "packages/*"
+  ],
+  "devDependencies": {
+    "turbo": "latest",
+    "tsx": "latest",
+    "typescript": "latest"
+  }
+}
