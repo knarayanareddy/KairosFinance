@@ -2,10 +2,14 @@
 // Must print "✅ PHASE 0 GATE PASSED" before proceeding to Phase 1.
 // Any other output means the signing implementation is broken.
 
-import * as dotenv from 'dotenv';
-dotenv.config();
-
 async function runGate() {
+  try {
+    const dotenv = await import('dotenv');
+    dotenv.config();
+  } catch (e) {
+    // dotenv not found, assuming environment variables are passed via CLI
+  }
+
   const { generateKeyPair, signRequestBody } = await import(
     '../packages/daemon/src/bunq/signing'
   );
