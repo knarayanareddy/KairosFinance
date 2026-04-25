@@ -218,6 +218,27 @@ function buildStepRequest(step, userId) {
                     allow_bunqme: false,
                 },
             };
+        case 'CARD_FREEZE':
+            return {
+                method: 'PUT',
+                path: `/user/${userId}/${payload['cardEndpoint'] ?? 'card-debit'}/${payload['cardId']}`,
+                body: { status: 'DEACTIVATED' },
+            };
+        case 'CARD_UNFREEZE':
+            return {
+                method: 'PUT',
+                path: `/user/${userId}/${payload['cardEndpoint'] ?? 'card-debit'}/${payload['cardId']}`,
+                body: { status: 'ACTIVE' },
+            };
+        case 'CREATE_SAVINGS_GOAL':
+            return {
+                method: 'POST',
+                path: `/user/${userId}/monetary-account/${payload['accountId']}/savings-goal`,
+                body: {
+                    name: payload['name'],
+                    goal_amount: { value: String(payload['amount']), currency: payload['currency'] ?? 'EUR' },
+                },
+            };
         default: {
             const exhaustive = step.type;
             throw new Error(`Unknown step type: ${exhaustive}`);

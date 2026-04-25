@@ -17,6 +17,8 @@ import { ProfitAndLoss } from './components/bookkeeping/ProfitAndLoss.js';
 import { VatTracker } from './components/bookkeeping/VatTracker.js';
 import { ExportModal } from './components/bookkeeping/ExportModal.js';
 import { BookkeepingStatus } from './components/bookkeeping/BookkeepingStatus.js';
+import { InsightsScreen } from './components/InsightsScreen.js';
+import { CardsPanel } from './components/CardsPanel.js';
 
 // ── Superscript-decimal currency (matches authentic bunq visual language) ─────
 function BunqBalance({
@@ -84,7 +86,7 @@ export function App(): React.JSX.Element {
   const [dismissedInterventionId, setDismissedInterventionId] = useState<string | null>(null);
   const [txRefreshKey, setTxRefreshKey] = useState(0);
   const [fundingState, setFundingState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
-  const [activeTab, setActiveTab]       = useState<'dashboard' | 'bookkeeping'>('dashboard');
+  const [activeTab, setActiveTab]       = useState<'dashboard' | 'insights' | 'cards' | 'bookkeeping'>('dashboard');
   const [exportModalOpen, setExportModalOpen] = useState(false);
 
   useEffect(() => {
@@ -263,7 +265,12 @@ export function App(): React.JSX.Element {
         borderBottom: '1px solid rgba(255,255,255,0.05)', zIndex: 99, position: 'sticky', top: '72px',
       }}>
         <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 28px', display: 'flex', gap: '0' }}>
-          {(['dashboard', 'bookkeeping'] as const).map(tab => (
+          {([
+            ['dashboard',   '📊 Dashboard'],
+            ['insights',    '💡 Insights'],
+            ['cards',       '💳 Cards'],
+            ['bookkeeping', '📒 Tax & Books'],
+          ] as const).map(([tab, label]) => (
             <button
               key={tab}
               onClick={() => setActiveTab(tab)}
@@ -276,7 +283,7 @@ export function App(): React.JSX.Element {
                 transition: 'all 0.2s', marginBottom: '-1px',
               }}
             >
-              {tab === 'dashboard' ? '📊 Dashboard' : '📒 Tax & Bookkeeper'}
+              {label}
             </button>
           ))}
         </div>
@@ -284,6 +291,25 @@ export function App(): React.JSX.Element {
 
       {/* ── Main layout ────────────────────────────────────────────────────── */}
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '28px 24px', position: 'relative', zIndex: 1 }}>
+
+      {/* ── Insights Tab ────────────────────────────────────────────────────── */}
+      {activeTab === 'insights' && (
+        <InsightsScreen
+          ws={ws}
+          dreamBriefing={dreamBriefing}
+          accountSummaries={accountSummaries}
+          onConfirmPlan={async (planId) => {
+            await fetch(`/api/confirm/${planId}`, { method: 'POST' });
+          }}
+          onDismissIntervention={(id) => {
+            void fetch(`/api/dismiss/${id}`, { method: 'POST' });
+            setDismissedInterventionId(id);
+          }}
+        />
+      )}
+
+      {/* ── Cards Tab ───────────────────────────────────────────────────────── */}
+      {activeTab === 'cards' && <CardsPanel />}
 
       {/* ── Bookkeeping Tab ─────────────────────────────────────────────────── */}
       {activeTab === 'bookkeeping' && (

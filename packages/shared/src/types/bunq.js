@@ -112,6 +112,17 @@ export const ScheduledPaymentSchema = z.object({
 export const ScheduledPaymentListResponseSchema = z.object({
     Response: z.array(z.object({ ScheduledPayment: ScheduledPaymentSchema }).passthrough()),
 });
+// ─── Savings Goal ─────────────────────────────────────────────────────────────
+export const SavingsGoalSchema = z.object({
+    id: z.number(),
+    name: z.string().optional(),
+    goal_amount: z.object({ value: z.string(), currency: z.string() }).optional(),
+    saved_amount: z.object({ value: z.string(), currency: z.string() }).optional(),
+    status: z.string().optional(),
+}).passthrough();
+export const SavingsGoalListResponseSchema = z.object({
+    Response: z.array(z.object({ SavingsGoal: SavingsGoalSchema }).passthrough()),
+});
 // ─── Webhook Event ────────────────────────────────────────────────────────────
 export const BunqWebhookEventSchema = z.object({
     NotificationUrl: z.object({

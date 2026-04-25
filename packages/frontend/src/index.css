@@ -8,7 +8,7 @@
 
 :root {
   /* ── bunq core palette ──────────────────────────────────────────────────── */
-  --bg-base:         #090909;
+  --bg-base:         #000000;
   --bg-surface:      rgba(255, 255, 255, 0.042);
   --bg-surface-alt:  rgba(255, 255, 255, 0.07);
   --bg-elevated:     #141418;

@@ -3,7 +3,10 @@ export type ExecutionStepType =
   | 'DRAFT_PAYMENT'
   | 'SAVINGS_TRANSFER'
   | 'CANCEL_DRAFT'
-  | 'SANDBOX_FUND';
+  | 'SANDBOX_FUND'
+  | 'CARD_FREEZE'
+  | 'CARD_UNFREEZE'
+  | 'CREATE_SAVINGS_GOAL';
 
 export type ExecutionPlanStatus =
   | 'PENDING'

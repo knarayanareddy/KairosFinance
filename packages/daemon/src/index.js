@@ -105,15 +105,16 @@ async function boot() {
         onError: (err) => { console.error('[heartbeat]', err.message); },
     };
     await registerWsRoute(fastify);
-    await registerApiRoutes(fastify, () => runTick(heartbeatDeps));
+    await registerApiRoutes(fastify, () => runTick(heartbeatDeps), client);
     await registerVoiceRoute(fastify, () => runTick(heartbeatDeps), () => activeAID);
     await registerReceiptRoute(fastify);
     await registerDreamRoutes(fastify);
     await registerForecastRoute(fastify);
     await registerDemoRoute(fastify, () => runTick(heartbeatDeps), () => activeAID);
     await registerBookkeepingRoutes(fastify, () => {
-        const profileRow = db.prepare(`SELECT counterparty_iban FROM goals WHERE jar_account_id IS NOT NULL LIMIT 1`).get();
-        return profileRow?.counterparty_iban ?? 'NL00BUNQ0000000000';
+        // Try to get the primary account IBAN from the session
+        const row = db.prepare(`SELECT counterparty_iban FROM transactions WHERE counterparty_iban IS NOT NULL LIMIT 1`).get();
+        return row?.counterparty_iban ?? 'NL00BUNQ0000000000';
     });
     // ── Listen ─────────────────────────────────────────────────────────────────
     await fastify.listen({ port, host: '0.0.0.0' });

@@ -245,6 +245,9 @@ export function ForecastChart(): React.JSX.Element {
   const RENT_THRESHOLD = 950;
   const day30Balance = data[data.length - 1]?.projectedBalance ?? 0;
   const riskDayIdx = data.findIndex(d => d.projectedBalance < RENT_THRESHOLD + 200);
+  const day30Date = new Date();
+  day30Date.setDate(day30Date.getDate() + 30);
+  const day30DateLabel = day30Date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
   const chartData = data.map((p, i) => ({
     ...p,
@@ -253,29 +256,36 @@ export function ForecastChart(): React.JSX.Element {
 
   return (
     <div style={card}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+      {/* Hero header */}
+      <div style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 16 }}>
         <div>
-          <div style={{ fontSize: '11px', letterSpacing: '0.12em', color: 'rgba(255,255,255,0.32)', fontWeight: 600, textTransform: 'uppercase', marginBottom: '4px' }}>
-            30-DAY FORECAST
+          <div style={{ fontSize: 10, letterSpacing: '0.14em', color: 'rgba(255,255,255,0.28)', fontWeight: 700, textTransform: 'uppercase', marginBottom: 10 }}>
+            30-Day Forecast
           </div>
-          <div style={{ fontSize: '14px', color: 'rgba(255,255,255,0.80)', fontWeight: 500 }}>
-            In 30 days, projected balance:{' '}
-            <span style={{ color: day30Balance > RENT_THRESHOLD ? '#00ff95' : '#ff1500', fontWeight: 700 }}>
-              ~€{day30Balance.toLocaleString()}
-            </span>
+          <div style={{ fontSize: 26, fontWeight: 800, color: '#fff', letterSpacing: '-0.03em', lineHeight: 1.1 }}>
+            Predicted<br />Balance
+          </div>
+          <div style={{ fontSize: 11, color: 'rgba(255,255,255,0.35)', marginTop: 6 }}>
+            on {day30DateLabel}
           </div>
           {riskDayIdx > 0 && (
-            <div style={{ fontSize: '12px', color: '#ff6a00', marginTop: '4px' }}>
-              ⚠️ Balance drops near rent threshold on Day {riskDayIdx + 1}
+            <div style={{ fontSize: 11, color: '#ff6a00', marginTop: 6, display: 'flex', alignItems: 'center', gap: 4 }}>
+              ⚠️ Low balance warning Day {riskDayIdx + 1}
             </div>
           )}
         </div>
-        {/* Legend */}
-        <div style={{ display: 'flex', gap: '16px', fontSize: '11px', color: 'rgba(255,255,255,0.32)', flexShrink: 0 }}>
-          <LegendItem color="#00bfff" label="Projected" type="line" />
-          <LegendItem color="rgba(0,191,255,0.15)" label="80% Band" type="band" />
-          <LegendItem color="#ff1500" label="Rent line" type="dashed" />
+        <div style={{ textAlign: 'right', flexShrink: 0 }}>
+          <div style={{
+            fontSize: 36, fontWeight: 800, letterSpacing: '-0.03em', lineHeight: 1,
+            color: day30Balance > RENT_THRESHOLD ? '#00bfff' : '#ff6a00',
+            fontFamily: "'Montserrat', sans-serif",
+          }}>
+            €{day30Balance.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+          </div>
+          <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 10, fontSize: 10, color: 'rgba(255,255,255,0.28)' }}>
+            <LegendItem color="#00bfff" label="Projected" type="line" />
+            <LegendItem color="#ff1500" label="Rent line" type="dashed" />
+          </div>
         </div>
       </div>
 

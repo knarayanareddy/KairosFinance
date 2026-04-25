@@ -32,10 +32,11 @@ function scoreColor(score: number): string {
   return '#ff1500';
 }
 
-function scoreGradientId(score: number): string {
-  if (score >= 75) return 'ringGradGreen';
-  if (score >= 50) return 'ringGradOrange';
-  return 'ringGradRed';
+function scoreLabel(score: number): string {
+  if (score >= 80) return 'EXCELLENT';
+  if (score >= 60) return 'GOOD';
+  if (score >= 40) return 'FAIR';
+  return 'AT RISK';
 }
 
 export function BUNQSYScore({ score }: Props): React.JSX.Element {
@@ -43,12 +44,11 @@ export function BUNQSYScore({ score }: Props): React.JSX.Element {
   const trend = score?.trend ?? 'flat';
   const dashOffset = CIRCUMFERENCE - (value / 100) * CIRCUMFERENCE;
   const color = scoreColor(value);
-  const gradId = scoreGradientId(value);
 
   return (
     <div className="glass" style={styles.card}>
       <div style={styles.header}>
-        <span style={styles.title}>BUNQSY Score</span>
+        <span style={styles.title}>BUNQSY HEALTH SCORE</span>
         {score && (
           <span style={styles.liveRow}>
             <span className="live-dot" />
@@ -60,17 +60,15 @@ export function BUNQSYScore({ score }: Props): React.JSX.Element {
       <div style={styles.ringWrap}>
         <svg width={200} height={200} style={styles.svg}>
           <defs>
-            <linearGradient id="ringGradGreen" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#00bfff" />
-              <stop offset="100%" stopColor="#00ff95" />
-            </linearGradient>
-            <linearGradient id="ringGradOrange" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ff6a00" />
-              <stop offset="100%" stopColor="#ffaa00" />
-            </linearGradient>
-            <linearGradient id="ringGradRed" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stopColor="#ff1500" />
-              <stop offset="100%" stopColor="#ff4757" />
+            {/* bunq rainbow spectrum — matches brand motif and reference designs */}
+            <linearGradient id="rainbowRingGrad" x1="0%" y1="100%" x2="100%" y2="0%">
+              <stop offset="0%"   stopColor="#ef4444" />
+              <stop offset="17%"  stopColor="#f97316" />
+              <stop offset="33%"  stopColor="#eab308" />
+              <stop offset="50%"  stopColor="#22c55e" />
+              <stop offset="67%"  stopColor="#3b82f6" />
+              <stop offset="83%"  stopColor="#6366f1" />
+              <stop offset="100%" stopColor="#a855f7" />
             </linearGradient>
           </defs>
           {/* Track */}
@@ -80,11 +78,11 @@ export function BUNQSYScore({ score }: Props): React.JSX.Element {
             stroke="rgba(255,255,255,0.07)"
             strokeWidth={10}
           />
-          {/* Progress */}
+          {/* Rainbow progress arc */}
           <circle
             cx={100} cy={100} r={RADIUS}
             fill="none"
-            stroke={`url(#${gradId})`}
+            stroke="url(#rainbowRingGrad)"
             strokeWidth={10}
             strokeLinecap="round"
             strokeDasharray={CIRCUMFERENCE}
@@ -93,24 +91,25 @@ export function BUNQSYScore({ score }: Props): React.JSX.Element {
               transform: 'rotate(-90deg)',
               transformOrigin: '100px 100px',
               transition: 'stroke-dashoffset 1s cubic-bezier(0.4,0,0.2,1)',
-              filter: `drop-shadow(0 0 10px ${color}90)`,
+              filter: `drop-shadow(0 0 12px rgba(100,180,255,0.5))`,
             }}
           />
-          {/* Score label */}
+          {/* Score number */}
           <text
-            x={100} y={94}
+            x={100} y={90}
             textAnchor="middle"
             dominantBaseline="middle"
             style={{ fill: '#ffffff', fontSize: '2.6rem', fontWeight: 800, fontFamily: "'Montserrat', 'Inter', sans-serif" }}
           >
             {value}
           </text>
+          {/* Emotion label below score */}
           <text
-            x={100} y={120}
+            x={100} y={118}
             textAnchor="middle"
-            style={{ fill: 'rgba(255,255,255,0.30)', fontSize: '0.7rem', fontFamily: 'Inter, sans-serif', letterSpacing: '0.08em' }}
+            style={{ fill: color, fontSize: '0.62rem', fontWeight: 700, fontFamily: 'Inter, sans-serif', letterSpacing: '0.12em' }}
           >
-            / 100
+            {scoreLabel(value)}
           </text>
         </svg>
       </div>

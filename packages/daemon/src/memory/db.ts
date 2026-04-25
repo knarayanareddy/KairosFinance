@@ -26,6 +26,13 @@ export function getDb(): Database.Database {
     const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf8');
     _db.exec(schema);
 
+    // Migrate: add bookkeeping columns to transactions for DBs predating the ledger feature
+    const txCols = new Set(
+      (_db.prepare('PRAGMA table_info(transactions)').all() as { name: string }[]).map(c => c.name),
+    );
+    if (!txCols.has('categorized_at'))   _db.exec(`ALTER TABLE transactions ADD COLUMN categorized_at TEXT`);
+    if (!txCols.has('journal_entry_id')) _db.exec(`ALTER TABLE transactions ADD COLUMN journal_entry_id TEXT`);
+
     // Load sqlite-vec extension and create pattern_embeddings virtual table.
     // This must happen after schema.sql because vec0 requires the extension
     // to already be loaded into the connection before the CREATE VIRTUAL TABLE.

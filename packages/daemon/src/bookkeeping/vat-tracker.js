@@ -1,28 +1,33 @@
 import { v4 as uuid } from 'uuid';
 export function getQuarterForDate(dateStr) {
-    const d = new Date(dateStr);
-    return {
-        year: d.getFullYear(),
-        quarter: Math.floor(d.getMonth() / 3) + 1,
-    };
+    const parts = dateStr.slice(0, 10).split('-');
+    const year = parseInt(parts[0] ?? '2026', 10);
+    const month = parseInt(parts[1] ?? '1', 10); // 1-based
+    return { year, quarter: Math.ceil(month / 3) };
+}
+function toDateStr(year, month1, day) {
+    // month1 is 1-based; pad to ISO YYYY-MM-DD without timezone conversion
+    return `${year}-${String(month1).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+}
+function lastDayOfMonth(year, month1) {
+    // Returns last day of month (1-based month)
+    return new Date(year, month1, 0).getDate();
 }
 export function getQuarterDateRange(year, quarter) {
-    const startMonth = (quarter - 1) * 3; // 0-based months
-    const start = new Date(year, startMonth, 1);
-    const end = new Date(year, startMonth + 3, 0); // last day of last month
+    const startMonth1 = (quarter - 1) * 3 + 1; // 1-based: Q1=1, Q2=4, Q3=7, Q4=10
+    const endMonth1 = quarter * 3; // 1-based: Q1=3, Q2=6, Q3=9, Q4=12
     return {
-        start: start.toISOString().slice(0, 10),
-        end: end.toISOString().slice(0, 10),
+        start: toDateStr(year, startMonth1, 1),
+        end: toDateStr(year, endMonth1, lastDayOfMonth(year, endMonth1)),
     };
 }
 export function getVatDueDate(year, quarter) {
     // NL BTW due: last day of month following the quarter end
-    const endMonth = quarter * 3; // 1-based: Q1=3, Q2=6, Q3=9, Q4=12
-    const dueMonth = endMonth + 1; // month after quarter end
-    const dueYear = dueMonth > 12 ? year + 1 : year;
-    const month = dueMonth > 12 ? 1 : dueMonth;
-    const lastDay = new Date(dueYear, month, 0); // day 0 of next month = last day
-    return lastDay.toISOString().slice(0, 10);
+    const endMonth1 = quarter * 3; // 1-based
+    const dueMonth1 = endMonth1 + 1;
+    const dueYear = dueMonth1 > 12 ? year + 1 : year;
+    const dueMonth = dueMonth1 > 12 ? 1 : dueMonth1;
+    return toDateStr(dueYear, dueMonth, lastDayOfMonth(dueYear, dueMonth));
 }
 function rowToVatPeriod(row) {
     return {
@@ -77,9 +82,10 @@ export function computeVatPeriod(db, year, quarter) {
     if (existing) {
         db.prepare(`
       UPDATE vat_periods
-      SET vat_collected = ?, vat_paid = ?, vat_net_due = ?, status = ?, updated_at = datetime('now')
+      SET period_start = ?, period_end = ?, due_date = ?,
+          vat_collected = ?, vat_paid = ?, vat_net_due = ?, status = ?, updated_at = datetime('now')
       WHERE year = ? AND quarter = ?
-    `).run(vatCollected, vatPaid, vatNetDue, status, year, quarter);
+    `).run(start, end, dueDate, vatCollected, vatPaid, vatNetDue, status, year, quarter);
         return rowToVatPeriod(db.prepare(`SELECT * FROM vat_periods WHERE year = ? AND quarter = ?`)
             .get(year, quarter));
     }

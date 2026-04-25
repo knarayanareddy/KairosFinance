@@ -130,7 +130,7 @@ async function boot(): Promise<void> {
   };
 
   await registerWsRoute(fastify);
-  await registerApiRoutes(fastify, () => runTick(heartbeatDeps));
+  await registerApiRoutes(fastify, () => runTick(heartbeatDeps), client);
   await registerVoiceRoute(fastify, () => runTick(heartbeatDeps), () => activeAID);
   await registerReceiptRoute(fastify);
   await registerDreamRoutes(fastify);

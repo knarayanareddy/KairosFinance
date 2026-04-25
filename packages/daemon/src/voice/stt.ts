@@ -2,14 +2,19 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
   const apiKey = process.env['ELEVENLABS_API_KEY'];
   if (!apiKey) throw new Error('ELEVENLABS_API_KEY is not set');
 
-  const ext = mimeType.includes('webm') ? '.webm'
-    : mimeType.includes('mp4')  ? '.mp4'
-    : mimeType.includes('wav')  ? '.wav'
-    : mimeType.includes('ogg')  ? '.ogg'
+  if (audioBuffer.length < 1000) throw new Error('Audio too short');
+
+  // Strip codec params — ElevenLabs rejects 'audio/webm;codecs=opus', needs 'audio/webm'
+  const baseMime = mimeType.split(';')[0]!.trim();
+
+  const ext = baseMime.includes('webm') ? '.webm'
+    : baseMime.includes('mp4')  ? '.mp4'
+    : baseMime.includes('wav')  ? '.wav'
+    : baseMime.includes('ogg')  ? '.ogg'
     : '.webm';
 
   const formData = new FormData();
-  formData.append('file', new Blob([new Uint8Array(audioBuffer)], { type: mimeType }), `audio${ext}`);
+  formData.append('file', new Blob([new Uint8Array(audioBuffer)], { type: baseMime }), `audio${ext}`);
   formData.append('model_id', 'scribe_v1');
   formData.append('language_code', 'en');
 

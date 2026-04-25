@@ -10,11 +10,14 @@ import {
   CardListResponseSchema,
   ScheduledPaymentSchema,
   ScheduledPaymentListResponseSchema,
+  SavingsGoalSchema,
+  SavingsGoalListResponseSchema,
   type MonetaryAccountWrapperType,
   type TaggedMonetaryAccount,
   type Payment,
   type Card,
   type ScheduledPayment,
+  type SavingsGoal,
 } from '@bunqsy/shared';
 
 function getBunqBaseUrl(): string {
@@ -127,6 +130,20 @@ export class BunqClient {
       CardListResponseSchema,
     );
     return data.Response.map(extractCardFromItem);
+  }
+
+  async getSavingsGoals(accountId: number): Promise<SavingsGoal[]> {
+    try {
+      const data = await this.get(
+        `/user/${this.session.userId}/monetary-account/${accountId}/savings-goal`,
+        SavingsGoalListResponseSchema,
+      );
+      return data.Response.map((item) =>
+        SavingsGoalSchema.parse((item as Record<string, unknown>)['SavingsGoal']),
+      );
+    } catch {
+      return []; // endpoint may not exist on all account types — fail silently
+    }
   }
 
   async getScheduledPayments(accountId: number): Promise<ScheduledPayment[]> {

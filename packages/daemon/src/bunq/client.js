@@ -1,6 +1,6 @@
 import { signRequestBody } from './signing.js';
 import { refreshSessionIfNeeded } from './auth.js';
-import { MonetaryAccountBankSchema, MonetaryAccountListResponseSchema, PaymentSchema, PaymentListResponseSchema, CardSchema, CardListResponseSchema, ScheduledPaymentSchema, ScheduledPaymentListResponseSchema, } from '@bunqsy/shared';
+import { MonetaryAccountBankSchema, MonetaryAccountListResponseSchema, PaymentSchema, PaymentListResponseSchema, CardSchema, CardListResponseSchema, ScheduledPaymentSchema, ScheduledPaymentListResponseSchema, SavingsGoalSchema, SavingsGoalListResponseSchema, } from '@bunqsy/shared';
 function getBunqBaseUrl() {
     const env = process.env.BUNQ_ENV;
     if (env === 'production') {
@@ -84,6 +84,15 @@ export class BunqClient {
     async getCards() {
         const data = await this.get(`/user/${this.session.userId}/card`, CardListResponseSchema);
         return data.Response.map(extractCardFromItem);
+    }
+    async getSavingsGoals(accountId) {
+        try {
+            const data = await this.get(`/user/${this.session.userId}/monetary-account/${accountId}/savings-goal`, SavingsGoalListResponseSchema);
+            return data.Response.map((item) => SavingsGoalSchema.parse(item['SavingsGoal']));
+        }
+        catch {
+            return []; // endpoint may not exist on all account types — fail silently
+        }
     }
     async getScheduledPayments(accountId) {
         const data = await this.get(`/user/${this.session.userId}/monetary-account/${accountId}/schedule`, ScheduledPaymentListResponseSchema);
