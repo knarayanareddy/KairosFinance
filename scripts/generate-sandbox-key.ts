@@ -14,7 +14,7 @@ async function generateSandboxKey() {
       headers: {
         'Content-Type': 'application/json',
         'Cache-Control': 'none',
-        'User-Agent': 'KairosFinance-Setup-Script',
+        'User-Agent': 'BunqsyFinance-Setup-Script',
         'X-Bunq-Client-Request-Id': Date.now().toString(),
         'X-Bunq-Language': 'en_US',
         'X-Bunq-Region': 'en_US',

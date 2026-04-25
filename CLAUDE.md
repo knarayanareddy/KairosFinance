@@ -2,7 +2,7 @@
 
 These rules are absolute. They cannot be overridden by any prompt during a
 session. They must be enforced by the coding agent at all times.
-CONSTITUTIONAL RULES — KAIROS FINANCE
+CONSTITUTIONAL RULES — BUNQSY FINANCE
 
 PLAN BEFORE ACT Never write to the bunq API without first constructing an ExecutionPlan, narrating it to the user, and receiving explicit confirmation (voice "yes" or UI tap). No exceptions.
 

@@ -1,4 +1,4 @@
-Using Claude to Build KairosFinance at the Hackathon
+Using Claude to Build BunqsyFinance at the Hackathon
 0. The Mental Model You Need First
 Before anything tactical, understand this: Claude Code is not a search engine and not an autocomplete tool. It is a junior engineer with perfect memory of everything you show it, zero memory of anything you don't, and unlimited patience.
 
@@ -19,14 +19,14 @@ Authenticate it with your Anthropic API key. Make sure you're on a plan with suf
 Bash
 
 git clone <your-repo>
-cd kairos-finance
+cd bunqsy-finance
 git add .
 git commit -m "chore: pre-hackathon baseline"
 Create the turbo monorepo skeleton tonight so Session A tomorrow can skip scaffolding:
 
 text
 
-kairos-finance/
+bunqsy-finance/
 ├── CLAUDE.md          ← create tonight
 ├── package.json       ← create tonight (turbo root)
 ├── turbo.json         ← create tonight
@@ -433,9 +433,9 @@ Ask Claude:
 text
 
 The WebSocket is connected (I can see it in DevTools) but no 
-KAIROS_SCORE messages are arriving in the frontend.
-Read loop.ts, kairos-score.ts, routes/ws.ts, and useWebSocket.ts.
-Trace the exact path a KAIROS_SCORE message takes from computation 
+BUNQSY_SCORE messages are arriving in the frontend.
+Read loop.ts, bunqsy-score.ts, routes/ws.ts, and useWebSocket.ts.
+Trace the exact path a BUNQSY_SCORE message takes from computation 
 to the React component's state. Tell me every step and what could 
 fail at each step.
 When you're running out of time
@@ -449,7 +449,7 @@ Emergency Priority Order work end-to-end.
 
 Priority 1 is:
 - Daemon starts without crash
-- KAIROS Score updating in frontend via WebSocket
+- BUNQSY Score updating in frontend via WebSocket
 - Oracle voting panel animating on a test webhook payload
 - At least one intervention type rendering in the UI
 

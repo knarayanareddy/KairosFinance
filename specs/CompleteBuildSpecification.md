@@ -2,14 +2,14 @@ CompleteBuildSpecification.md:
 
 Markdown
 
-# KAIROS Finance — Complete Build Specification v2.0
+# BUNQSY Finance — Complete Build Specification v2.0
 # bunq Hackathon 7.0
 
 ---
 
 ## 0. Document Purpose & Authority
 
-This document is the **single source of truth** for the entire KAIROS Finance build.
+This document is the **single source of truth** for the entire BUNQSY Finance build.
 No other document, memory, or prior conversation overrides what is written here.
 Claude Code must read this file at the start of every session before writing a
 single line of code. If anything in this spec conflicts with a prompt given
@@ -19,7 +19,7 @@ during a session, this spec wins.
 
 ## 1. Product Vision
 
-**KAIROS Finance is an always-on background financial guardian for bunq users.**
+**BUNQSY Finance is an always-on background financial guardian for bunq users.**
 
 It does not wait for prompts. It monitors events in real time, detects risk and
 behavioural patterns, consolidates knowledge while the user sleeps, and
@@ -39,7 +39,7 @@ Core pillars:
 
 These rules are absolute. They cannot be overridden by any prompt during a
 session. They must be enforced by the coding agent at all times.
-CONSTITUTIONAL RULES — KAIROS FINANCE
+CONSTITUTIONAL RULES — BUNQSY FINANCE
 
 PLAN BEFORE ACT Never write to the bunq API without first constructing an ExecutionPlan, narrating it to the user, and receiving explicit confirmation (voice "yes" or UI tap). No exceptions.
 
@@ -67,7 +67,7 @@ text
 ---
 
 ## 3. Monorepo Structure
-kairos-finance/ ├── CLAUDE.md ← Constitutional rules (copy of Section 2) ├── package.json ← Turborepo root ├── turbo.json ├── .env.example ├── specs/ │ └── CompleteBuildSpecification.md ← This file │ ├── packages/ │ ├── shared/ ← Canonical types, Zod schemas, constants │ │ ├── src/ │ │ │ ├── types/ │ │ │ │ ├── bunq.ts ← bunq API response shapes │ │ │ │ ├── events.ts ← Internal event bus types │ │ │ │ ├── memory.ts ← DB row types │ │ │ │ ├── oracle.ts ← Vote, verdict, sub-agent types │ │ │ │ ├── plan.ts ← ExecutionPlan, ExecutionStep types │ │ │ │ └── ws.ts ← WebSocket message envelope types │ │ │ └── index.ts │ │ └── package.json │ │ │ ├── daemon/ ← Node.js + Fastify backend │ │ ├── src/ │ │ │ ├── index.ts ← Fastify server bootstrap │ │ │ ├── bunq/ │ │ │ │ ├── auth.ts ← Installation, device-server, session │ │ │ │ ├── client.ts ← Read-only bunq HTTP client │ │ │ │ ├── execute.ts ← ⚠️ ONLY write gateway (POST/PUT/DELETE) │ │ │ │ ├── signing.ts ← RSA + SHA256 request signing │ │ │ │ ├── webhook.ts ← Webhook receiver + signature validation │ │ │ │ └── accounts.ts ← Account + balance read helpers │ │ │ ├── memory/ │ │ │ │ ├── db.ts ← SQLite connection + migrations │ │ │ │ ├── schema.sql ← Full DB schema │ │ │ │ ├── transactions.ts ← Transaction read/write helpers │ │ │ │ ├── patterns.ts ← Pattern CRUD + confidence update │ │ │ │ ├── profile.ts ← UserProfile + Goals helpers │ │ │ │ ├── interventions.ts ← Intervention log helpers │ │ │ │ └── vector.ts ← sqlite-vec embedding search │ │ │ ├── heartbeat/ │ │ │ │ ├── loop.ts ← 30s tick, Recall→Reason→React │ │ │ │ ├── recall.ts ← State hydration (minimal slice) │ │ │ │ ├── kairos-score.ts ← KAIROS Score computation + emission │ │ │ │ └── tick-log.ts ← Append-only tick log writer │ │ │ ├── oracle/ │ │ │ │ ├── index.ts ← Orchestrator: runs all agents, aggregates │ │ │ │ ├── agents/ │ │ │ │ │ ├── balance-sentinel.ts │ │ │ │ │ ├── velocity-analyzer.ts │ │ │ │ │ ├── pattern-matcher.ts │ │ │ │ │ ├── subscription-watcher.ts │ │ │ │ │ ├── rent-proximity-guard.ts │ │ │ │ │ └── fraud-shadow.ts ← NEW: 6th sub-agent │ │ │ │ └── aggregator.ts ← Voting aggregation → verdict │ │ │ ├── intervention/ │ │ │ │ ├── engine.ts ← Modality selection + dispatch │ │ │ │ ├── handlers/ │ │ │ │ │ ├── low-balance.ts │ │ │ │ │ ├── impulse-buy.ts │ │ │ │ │ ├── salary-received.ts │ │ │ │ │ ├── subscription-duplicate.ts │ │ │ │ │ ├── fraud-block.ts ← NEW: Draft payment block handler │ │ │ │ │ └── dream-suggestion.ts │ │ │ │ └── explainer.ts ← NEW: Claude narration for every card │ │ │ ├── voice/ │ │ │ │ ├── stt.ts ← whisper.cpp STT │ │ │ │ ├── planner.ts ← Claude → ExecutionPlan │ │ │ │ └── executor.ts ← Confirmed plan → execute.ts │ │ │ ├── receipt/ │ │ │ │ ├── extractor.ts ← Claude Vision → structured receipt │ │ │ │ ├── verifier.ts ← Self-verification (line item check) │ │ │ │ └── categorizer.ts ← Category + optional jar action │ │ │ ├── dream/ │ │ │ │ ├── scheduler.ts ← node-cron 2am trigger │ │ │ │ ├── trigger.ts ← Manual trigger (forks worker) │ │ │ │ ├── worker.ts ← Forked child: consolidation logic │ │ │ │ └── dna.ts ← NEW: Financial DNA card generation │ │ │ ├── forecast/ │ │ │ │ └── engine.ts ← NEW: 30-day pattern extrapolation │ │ │ ├── jars/ │ │ │ │ └── agent.ts ← NEW: SavingsJarAgent │ │ │ ├── patterns/ │ │ │ │ ├── brain.ts ← Pattern load, match, promote │ │ │ │ └── skills/ ← Markdown pattern skill files │ │ │ └── routes/ │ │ │ ├── webhook.ts ← POST /api/webhook │ │ │ ├── voice.ts ← POST /api/voice │ │ │ ├── receipt.ts ← POST /api/receipt │ │ │ ├── dream.ts ← POST /api/dream/trigger, GET /api/dream/latest │ │ │ ├── forecast.ts ← GET /api/forecast │ │ │ ├── score.ts ← GET /api/score │ │ │ ├── confirm.ts ← POST /api/confirm/:planId │ │ │ └── ws.ts ← WebSocket upgrade handler │ │ └── package.json │ │ │ └── frontend/ ← React + Vite │ ├── src/ │ │ ├── App.tsx │ │ ├── components/ │ │ │ ├── KAIROSScore.tsx ← NEW: Live score display │ │ │ ├── OracleVotingPanel.tsx ← NEW: Live sub-agent vote rows │ │ │ ├── InterventionCard.tsx ← Existing + explainability overlay │ │ │ ├── VoiceOrb.tsx │ │ │ ├── ReceiptScanner.tsx │ │ │ ├── DreamBriefing.tsx ← Updated: includes DNA card │ │ │ ├── ForecastChart.tsx ← NEW: 30-day area chart │ │ │ ├── FraudBlock.tsx ← NEW: Draft payment confirmation │ │ │ └── DreamTrigger.tsx ← NEW: "Trigger Dream Now" button │ │ ├── hooks/ │ │ │ ├── useWebSocket.ts │ │ │ ├── useKAIROSScore.ts ← NEW │ │ │ └── useForecast.ts ← NEW │ │ └── main.tsx │ └── package.json
+bunqsy-finance/ ├── CLAUDE.md ← Constitutional rules (copy of Section 2) ├── package.json ← Turborepo root ├── turbo.json ├── .env.example ├── specs/ │ └── CompleteBuildSpecification.md ← This file │ ├── packages/ │ ├── shared/ ← Canonical types, Zod schemas, constants │ │ ├── src/ │ │ │ ├── types/ │ │ │ │ ├── bunq.ts ← bunq API response shapes │ │ │ │ ├── events.ts ← Internal event bus types │ │ │ │ ├── memory.ts ← DB row types │ │ │ │ ├── oracle.ts ← Vote, verdict, sub-agent types │ │ │ │ ├── plan.ts ← ExecutionPlan, ExecutionStep types │ │ │ │ └── ws.ts ← WebSocket message envelope types │ │ │ └── index.ts │ │ └── package.json │ │ │ ├── daemon/ ← Node.js + Fastify backend │ │ ├── src/ │ │ │ ├── index.ts ← Fastify server bootstrap │ │ │ ├── bunq/ │ │ │ │ ├── auth.ts ← Installation, device-server, session │ │ │ │ ├── client.ts ← Read-only bunq HTTP client │ │ │ │ ├── execute.ts ← ⚠️ ONLY write gateway (POST/PUT/DELETE) │ │ │ │ ├── signing.ts ← RSA + SHA256 request signing │ │ │ │ ├── webhook.ts ← Webhook receiver + signature validation │ │ │ │ └── accounts.ts ← Account + balance read helpers │ │ │ ├── memory/ │ │ │ │ ├── db.ts ← SQLite connection + migrations │ │ │ │ ├── schema.sql ← Full DB schema │ │ │ │ ├── transactions.ts ← Transaction read/write helpers │ │ │ │ ├── patterns.ts ← Pattern CRUD + confidence update │ │ │ │ ├── profile.ts ← UserProfile + Goals helpers │ │ │ │ ├── interventions.ts ← Intervention log helpers │ │ │ │ └── vector.ts ← sqlite-vec embedding search │ │ │ ├── heartbeat/ │ │ │ │ ├── loop.ts ← 30s tick, Recall→Reason→React │ │ │ │ ├── recall.ts ← State hydration (minimal slice) │ │ │ │ ├── bunqsy-score.ts ← BUNQSY Score computation + emission │ │ │ │ └── tick-log.ts ← Append-only tick log writer │ │ │ ├── oracle/ │ │ │ │ ├── index.ts ← Orchestrator: runs all agents, aggregates │ │ │ │ ├── agents/ │ │ │ │ │ ├── balance-sentinel.ts │ │ │ │ │ ├── velocity-analyzer.ts │ │ │ │ │ ├── pattern-matcher.ts │ │ │ │ │ ├── subscription-watcher.ts │ │ │ │ │ ├── rent-proximity-guard.ts │ │ │ │ │ └── fraud-shadow.ts ← NEW: 6th sub-agent │ │ │ │ └── aggregator.ts ← Voting aggregation → verdict │ │ │ ├── intervention/ │ │ │ │ ├── engine.ts ← Modality selection + dispatch │ │ │ │ ├── handlers/ │ │ │ │ │ ├── low-balance.ts │ │ │ │ │ ├── impulse-buy.ts │ │ │ │ │ ├── salary-received.ts │ │ │ │ │ ├── subscription-duplicate.ts │ │ │ │ │ ├── fraud-block.ts ← NEW: Draft payment block handler │ │ │ │ │ └── dream-suggestion.ts │ │ │ │ └── explainer.ts ← NEW: Claude narration for every card │ │ │ ├── voice/ │ │ │ │ ├── stt.ts ← whisper.cpp STT │ │ │ │ ├── planner.ts ← Claude → ExecutionPlan │ │ │ │ └── executor.ts ← Confirmed plan → execute.ts │ │ │ ├── receipt/ │ │ │ │ ├── extractor.ts ← Claude Vision → structured receipt │ │ │ │ ├── verifier.ts ← Self-verification (line item check) │ │ │ │ └── categorizer.ts ← Category + optional jar action │ │ │ ├── dream/ │ │ │ │ ├── scheduler.ts ← node-cron 2am trigger │ │ │ │ ├── trigger.ts ← Manual trigger (forks worker) │ │ │ │ ├── worker.ts ← Forked child: consolidation logic │ │ │ │ └── dna.ts ← NEW: Financial DNA card generation │ │ │ ├── forecast/ │ │ │ │ └── engine.ts ← NEW: 30-day pattern extrapolation │ │ │ ├── jars/ │ │ │ │ └── agent.ts ← NEW: SavingsJarAgent │ │ │ ├── patterns/ │ │ │ │ ├── brain.ts ← Pattern load, match, promote │ │ │ │ └── skills/ ← Markdown pattern skill files │ │ │ └── routes/ │ │ │ ├── webhook.ts ← POST /api/webhook │ │ │ ├── voice.ts ← POST /api/voice │ │ │ ├── receipt.ts ← POST /api/receipt │ │ │ ├── dream.ts ← POST /api/dream/trigger, GET /api/dream/latest │ │ │ ├── forecast.ts ← GET /api/forecast │ │ │ ├── score.ts ← GET /api/score │ │ │ ├── confirm.ts ← POST /api/confirm/:planId │ │ │ └── ws.ts ← WebSocket upgrade handler │ │ └── package.json │ │ │ └── frontend/ ← React + Vite │ ├── src/ │ │ ├── App.tsx │ │ ├── components/ │ │ │ ├── BUNQSYScore.tsx ← NEW: Live score display │ │ │ ├── OracleVotingPanel.tsx ← NEW: Live sub-agent vote rows │ │ │ ├── InterventionCard.tsx ← Existing + explainability overlay │ │ │ ├── VoiceOrb.tsx │ │ │ ├── ReceiptScanner.tsx │ │ │ ├── DreamBriefing.tsx ← Updated: includes DNA card │ │ │ ├── ForecastChart.tsx ← NEW: 30-day area chart │ │ │ ├── FraudBlock.tsx ← NEW: Draft payment confirmation │ │ │ └── DreamTrigger.tsx ← NEW: "Trigger Dream Now" button │ │ ├── hooks/ │ │ │ ├── useWebSocket.ts │ │ │ ├── useBUNQSYScore.ts ← NEW │ │ │ └── useForecast.ts ← NEW │ │ └── main.tsx │ └── package.json
 
 text
 
@@ -84,7 +84,7 @@ BUNQ_ENV=sandbox
 
 # bunq API credentials
 BUNQ_API_KEY=
-BUNQ_DEVICE_DESCRIPTION=KairosFinance-Dev
+BUNQ_DEVICE_DESCRIPTION=BunqsyFinance-Dev
 
 # bunq sandbox base URL
 BUNQ_SANDBOX_URL=https://public-api.sandbox.bunq.com/v1
@@ -101,7 +101,7 @@ OLLAMA_EMBED_MODEL=nomic-embed-text
 WHISPER_MODEL_PATH=./models/ggml-base.bin
 
 # Database
-DB_PATH=./kairos.db
+DB_PATH=./bunqsy.db
 
 # Server
 PORT=3001
@@ -110,7 +110,7 @@ WS_PORT=3002
 # Webhook tunnel (ngrok or similar for sandbox)
 WEBHOOK_PUBLIC_URL=
 
-# KAIROS Score weights (tune as needed)
+# BUNQSY Score weights (tune as needed)
 SCORE_WEIGHT_BALANCE=0.35
 SCORE_WEIGHT_VELOCITY=0.25
 SCORE_WEIGHT_GOALS=0.25
@@ -124,10 +124,10 @@ TIER 1 — MUST SHIP (demo collapses without these)
   Phase 0:  Signing test gate
   Phase 1:  bunq auth + client + webhook receiver
   Phase 2:  DB schema + memory helpers
-  Phase 3:  Heartbeat loop + KAIROS Score
+  Phase 3:  Heartbeat loop + BUNQSY Score
   Phase 4:  Risk Oracle (6 sub-agents) + Oracle Voting Panel WebSocket
   Phase 5:  Intervention Engine + Explainability Overlay
-  Phase 6:  Core frontend (KAIROSScore, OracleVotingPanel, InterventionCard)
+  Phase 6:  Core frontend (BUNQSYScore, OracleVotingPanel, InterventionCard)
 
 TIER 2 — SHOULD SHIP (demo is significantly stronger with these)
   Phase 7:  Voice pipeline
@@ -244,7 +244,7 @@ async function runGate() {
 
   // 2. Register device-server
   const deviceBody = JSON.stringify({
-    description: 'KairosFinance-Gate-Test',
+    description: 'BunqsyFinance-Gate-Test',
     secret: process.env.BUNQ_API_KEY,
     permitted_ips: ['*'],
   });
@@ -545,7 +545,7 @@ CREATE TABLE IF NOT EXISTS tick_log (
   reason_ran INTEGER NOT NULL DEFAULT 0,  -- 1 if heavy reasoning was triggered
   verdict TEXT,
   risk_score REAL,
-  kairos_score REAL,
+  bunqsy_score REAL,
   intervention_id TEXT
 );
 
@@ -564,7 +564,7 @@ CREATE TABLE IF NOT EXISTS dream_sessions (
   status TEXT NOT NULL DEFAULT 'RUNNING'  -- RUNNING | COMPLETED | FAILED | KILLED
 );
 
--- KAIROS Score Log (append-only)
+-- BUNQSY Score Log (append-only)
 CREATE TABLE IF NOT EXISTS score_log (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   score REAL NOT NULL,
@@ -593,7 +593,7 @@ let _db: Database.Database | null = null;
 
 export function getDb(): Database.Database {
   if (!_db) {
-    _db = new Database(process.env.DB_PATH ?? './kairos.db');
+    _db = new Database(process.env.DB_PATH ?? './bunqsy.db');
     _db.pragma('journal_mode = WAL');
     _db.pragma('foreign_keys = ON');
     const schema = readFileSync(join(__dirname, 'schema.sql'), 'utf8');
@@ -601,35 +601,35 @@ export function getDb(): Database.Database {
   }
   return _db;
 }
-PHASE 3: Heartbeat Loop + KAIROS Score (Tier 1)
+PHASE 3: Heartbeat Loop + BUNQSY Score (Tier 1)
 Files:
 
 text
 
 packages/daemon/src/heartbeat/loop.ts
 packages/daemon/src/heartbeat/recall.ts
-packages/daemon/src/heartbeat/kairos-score.ts
+packages/daemon/src/heartbeat/bunqsy-score.ts
 packages/daemon/src/heartbeat/tick-log.ts
-3a. KAIROS Score (kairos-score.ts)
-The KAIROS Score is a real-time composite health indicator (0–100) updated on every heartbeat tick and emitted over WebSocket.
+3a. BUNQSY Score (bunqsy-score.ts)
+The BUNQSY Score is a real-time composite health indicator (0–100) updated on every heartbeat tick and emitted over WebSocket.
 
 TypeScript
 
-export interface KAIROSScoreComponents {
+export interface BUNQSYScoreComponents {
   balance: number;       // 0–100: how healthy current balance is vs. upcoming commitments
   velocity: number;      // 0–100: spend rate relative to historical norm (inverted: lower spend = higher)
   goals: number;         // 0–100: weighted progress across all active goals
   upcoming: number;      // 0–100: penalty for large commitments due in <7 days
 }
 
-export interface KAIROSScore {
+export interface BUNQSYScore {
   score: number;                    // 0–100, weighted composite
-  components: KAIROSScoreComponents;
+  components: BUNQSYScoreComponents;
   trend: 'rising' | 'falling' | 'stable';
   computedAt: Date;
 }
 
-export async function computeKAIROSScore(state: RecalledState): Promise<KAIROSScore>
+export async function computeBUNQSYScore(state: RecalledState): Promise<BUNQSYScore>
 Weight formula:
 
 text
@@ -651,7 +651,7 @@ TypeScript
 
 // packages/shared/src/types/ws.ts
 export type WSMessage =
-  | { type: 'KAIROS_SCORE'; payload: KAIROSScore }
+  | { type: 'BUNQSY_SCORE'; payload: BUNQSYScore }
   | { type: 'ORACLE_VOTE'; payload: OracleVote }            // emitted per sub-agent as it completes
   | { type: 'ORACLE_VERDICT'; payload: OracleVerdict }
   | { type: 'INTERVENTION'; payload: InterventionPayload }
@@ -681,10 +681,10 @@ async function tick(deps: HeartbeatDeps): Promise<void> {
 
   // RECALL: hydrate minimal state slice
   const state = await recall(deps.client, deps.db);
-  const score = await computeKAIROSScore(state);
+  const score = await computeBUNQSYScore(state);
 
   // Emit score immediately regardless of whether we reason
-  deps.wsEmit({ type: 'KAIROS_SCORE', payload: score });
+  deps.wsEmit({ type: 'BUNQSY_SCORE', payload: score });
   appendTickLog(deps.db, { score });
 
   // REASON: only if state changed OR interval elapsed OR webhook forced tick
@@ -978,7 +978,7 @@ export async function generateExplanation(
   const response = await anthropic.messages.create({
     model: 'claude-opus-4-5',
     max_tokens: 150,
-    system: `You are KAIROS, a financial guardian. Explain in 2-3 plain English
+    system: `You are BUNQSY, a financial guardian. Explain in 2-3 plain English
              sentences why you are intervening right now. Be specific with numbers.
              Do not use jargon. Write as if speaking to the user directly.`,
     messages: [{ role: 'user', content: context }],
@@ -1016,7 +1016,7 @@ export async function fraudBlockHandler(
         requiresConfirmation: true,
       },
     }],
-    `⚠️ KAIROS detected a suspicious transaction pattern. ${explanation} Tap confirm to allow this transaction, or dismiss to block it.`
+    `⚠️ BUNQSY detected a suspicious transaction pattern. ${explanation} Tap confirm to allow this transaction, or dismiss to block it.`
   );
 
   wsEmit({
@@ -1039,12 +1039,12 @@ Files:
 text
 
 packages/frontend/src/App.tsx
-packages/frontend/src/components/KAIROSScore.tsx
+packages/frontend/src/components/BUNQSYScore.tsx
 packages/frontend/src/components/OracleVotingPanel.tsx
 packages/frontend/src/components/InterventionCard.tsx
 packages/frontend/src/hooks/useWebSocket.ts
-packages/frontend/src/hooks/useKAIROSScore.ts
-6a. KAIROSScore Component
+packages/frontend/src/hooks/useBUNQSYScore.ts
+6a. BUNQSYScore Component
 text
 
 Visual spec:
@@ -1053,8 +1053,8 @@ Visual spec:
 - Trend arrow: ↑ rising, ↓ falling, → stable, with colour matching direction
 - Four small component bars below: Balance | Velocity | Goals | Upcoming
 - Animated: number counts up/down smoothly on each update (500ms transition)
-- Updates via useKAIROSScore hook (WebSocket KAIROS_SCORE messages)
-- Label: "KAIROS Score — Financial Health Right Now"
+- Updates via useBUNQSYScore hook (WebSocket BUNQSY_SCORE messages)
+- Label: "BUNQSY Score — Financial Health Right Now"
 6b. OracleVotingPanel Component
 text
 
@@ -1087,7 +1087,7 @@ Visual spec:
 - Slides up from bottom on INTERVENTION WebSocket message
 - Header: intervention type icon + title
 - Body: narration text (from explainer.ts) — plain English, prominent
-- "Why did KAIROS do this?" expandable panel:
+- "Why did BUNQSY do this?" expandable panel:
     - Shows oracle votes summary (agent name + verdict + reason per row)
     - Shows riskScore as a number
     - One-tap to expand/collapse
@@ -1133,7 +1133,7 @@ TypeScript
 
 // Claude system prompt for voice planning
 const PLANNER_SYSTEM = `
-You are KAIROS, an always-on financial guardian for a bunq user.
+You are BUNQSY, an always-on financial guardian for a bunq user.
 The user has just spoken a financial instruction. Your job is to:
 1. Understand the intent
 2. Create a precise ExecutionPlan with specific steps
@@ -1388,7 +1388,7 @@ export async function runSavingsJarAgent(
       toAccountId: t.jarAccountId,
       amount: t.amount,
       currency: 'EUR',
-      description: `KAIROS auto-save: ${t.jarName}`,
+      description: `BUNQSY auto-save: ${t.jarName}`,
     },
   }));
 
@@ -1486,7 +1486,7 @@ Visual spec:
 - Header: "⚠️ Suspicious Transaction Detected" in amber/red
 - Body:
     - Fraud signals listed as checklist items (each signal checked off)
-    - KAIROS narration explaining the concern
+    - BUNQSY narration explaining the concern
     - Transaction details if available
 - Two large buttons:
     - "✅ I authorised this — Allow" (green)
@@ -1514,7 +1514,7 @@ Extend oracle and jars agent to:
 
 Load and analyse ALL monetary accounts (primary + savings + joint)
 In joint accounts: detect unusual spend from secondary user
-In savings accounts: surface goal progress in KAIROSScore goals component
+In savings accounts: surface goal progress in BUNQSYScore goals component
 PHASE 15: Demo Polish (Tier 3)
 Add loading skeleton states for all async operations
 Add smooth CSS transitions on all WebSocket-driven UI updates
@@ -1545,7 +1545,7 @@ Forecast
   GET    /api/forecast?refresh=true     Force regeneration
 
 Score
-  GET    /api/score                     Latest KAIROSScore (REST fallback)
+  GET    /api/score                     Latest BUNQSYScore (REST fallback)
 
 Confirmation
   POST   /api/confirm/:planId           Confirm ExecutionPlan
@@ -1559,7 +1559,7 @@ TypeScript
 
 // All messages are JSON with envelope: { type: string, payload: unknown }
 
-KAIROS_SCORE      → KAIROSScore                  (every heartbeat tick)
+BUNQSY_SCORE      → BUNQSYScore                  (every heartbeat tick)
 ORACLE_VOTE       → OracleVote                   (per sub-agent, as it resolves)
 ORACLE_VERDICT    → OracleVerdict                (after all 6 votes)
 INTERVENTION      → InterventionPayload          (when oracle says INTERVENE)
@@ -1570,11 +1570,11 @@ FORECAST_READY    → ForecastPoint[]              (forecast regenerated)
 9. Updated 3-Minute Demo Script
 This is the canonical demo flow. Build everything to make this script work exactly as written. Practice it until it runs in under 3 minutes.
 
-[0:00–0:20] — KAIROS Score + Morning Briefing
+[0:00–0:20] — BUNQSY Score + Morning Briefing
 
-Open the dashboard. The large KAIROS Score is visible: 78, green, trend arrow stable.
+Open the dashboard. The large BUNQSY Score is visible: 78, green, trend arrow stable.
 
-Say: "KAIROS runs continuously in the background, every 30 seconds, even when you're asleep. Last night, it ran a Dream Mode consolidation — let me show you what it learned about me."
+Say: "BUNQSY runs continuously in the background, every 30 seconds, even when you're asleep. Last night, it ran a Dream Mode consolidation — let me show you what it learned about me."
 
 Click "💤 Trigger Dream Mode Now". The button animates. After ~15 seconds, the DreamBriefing modal opens automatically. Read the morning briefing text aloud. Point to the Financial DNA card: "Disciplined saver, impulsive weekends, risk-aware." Say: "It built this from my actual spending patterns — no manual categorisation."
 
@@ -1598,17 +1598,17 @@ Rent Proximity Guard ✅ CLEAR — 0:03
 Fraud Shadow 🚨 INTERVENE — 0:04 (confidence: 92%)
 Final verdict appears: 🚨 INTERVENE — Risk Score 84
 
-The KAIROS Score drops from 78 to 51, red, trend arrow falling.
+The BUNQSY Score drops from 78 to 51, red, trend arrow falling.
 
 [0:45–1:10] — Fraud Block
 
 The FraudBlock modal opens full-screen.
 
-Read the narration aloud: "KAIROS says: this transaction hit four fraud signals — it's 2am, the merchant is new, the amount is a round number, and it's in a foreign currency. That's unusual for your profile."
+Read the narration aloud: "BUNQSY says: this transaction hit four fraud signals — it's 2am, the merchant is new, the amount is a round number, and it's in a foreign currency. That's unusual for your profile."
 
-Show the fraud signal checklist. Point to the explainability overlay: "You can always see exactly why KAIROS made this call — it's not a black box."
+Show the fraud signal checklist. Point to the explainability overlay: "You can always see exactly why BUNQSY made this call — it's not a black box."
 
-Hold the "🚫 Block this transaction" button for 2 seconds. The modal closes. KAIROS Score rises back to 74. OracleVotingPanel resets to idle.
+Hold the "🚫 Block this transaction" button for 2 seconds. The modal closes. BUNQSY Score rises back to 74. OracleVotingPanel resets to idle.
 
 [1:10–1:35] — Voice Command
 
@@ -1618,7 +1618,7 @@ Say clearly: "Send twenty euros to Sarah for lunch."
 
 Tap again to stop recording. After 3 seconds, the plan card appears: "I will send €20.00 to Sarah (IBAN: NL...) from your primary account. This will leave your balance at €1,247."
 
-Say: "Notice KAIROS planned first and told me exactly what it was going to do. It never acts without my permission."
+Say: "Notice BUNQSY planned first and told me exactly what it was going to do. It never acts without my permission."
 
 Tap Confirm. The VoiceOrb returns to idle. Say: "Done. The bunq payment executed through a single audited write gateway."
 
@@ -1628,27 +1628,27 @@ Trigger a test webhook: salary landing (€3,200 from regular employer IBAN).
 
 The OracleVotingPanel briefly runs. An InterventionCard slides up:
 
-"Your salary of €3,200 just landed. KAIROS suggests: €950 to rent reserve, €320 to emergency fund, €200 to Amsterdam trip goal. Remaining €1,730 stays in your primary account. Confirm to execute 3 transfers."
+"Your salary of €3,200 just landed. BUNQSY suggests: €950 to rent reserve, €320 to emergency fund, €200 to Amsterdam trip goal. Remaining €1,730 stays in your primary account. Confirm to execute 3 transfers."
 
-Tap Confirm. Say: "Three bunq sub-account transfers, executed in sequence, automatically. This is the bunq Jars API in action — KAIROS turns salary day from a manual chore into a 2-second tap."
+Tap Confirm. Say: "Three bunq sub-account transfers, executed in sequence, automatically. This is the bunq Jars API in action — BUNQSY turns salary day from a manual chore into a 2-second tap."
 
 [2:00–2:30] — Forecast
 
 Point to the ForecastChart (visible below the Oracle panel).
 
-Say: "KAIROS doesn't just react — it predicts. This is my projected balance for the next 30 days, with an 80% confidence band."
+Say: "BUNQSY doesn't just react — it predicts. This is my projected balance for the next 30 days, with an 80% confidence band."
 
 Hover over day 14 — tooltip shows: 🏠 Rent due (€950), projected balance €892. A risk flag glows on that date.
 
-Say: "KAIROS has already flagged that in 14 days, after rent, my balance will be close to my safety threshold. It's going to start nudging me about this in about a week — before it becomes a problem."
+Say: "BUNQSY has already flagged that in 14 days, after rent, my balance will be close to my safety threshold. It's going to start nudging me about this in about a week — before it becomes a problem."
 
 [2:30–3:00] — Closing pitch
 
-Say: "Every other financial AI waits for you to ask a question. KAIROS is different. It watches. It learns. It dreams. And it acts — always with your permission, always with an explanation, always with one audited path to execution through the bunq API.
+Say: "Every other financial AI waits for you to ask a question. BUNQSY is different. It watches. It learns. It dreams. And it acts — always with your permission, always with an explanation, always with one audited path to execution through the bunq API.
 
 It's not a chatbot for your bank. It's a guardian for your financial life.
 
-This is KAIROS."
+This is BUNQSY."
 
 10. Pre-Demo Checklist
 Run through this before every judge session:
@@ -1664,7 +1664,7 @@ text
 □ Dream Mode: trigger manually once, confirm briefing modal appears
 □ Oracle: trigger test fraud webhook, confirm all 6 votes animate
 □ Forecast chart: visible and populated with 30 data points
-□ KAIROS Score: visible and updating every ~30 seconds
+□ BUNQSY Score: visible and updating every ~30 seconds
 □ "Reset Demo State" button tested — restores clean state in < 5 seconds
 □ All 3 tier-1 components visible on load without interaction
 □ Browser fullscreen, notifications off, terminal hidden

@@ -1,4 +1,4 @@
-# KAIROS Finance — Prefix Instructions v2.0
+# BUNQSY Finance — Prefix Instructions v2.0
 # Multi-Session Build Execution Guide for Claude Code
 
 ---
@@ -127,7 +127,7 @@ File creation:
 
 Imports:
   - Use relative imports within a package
-  - Use package name imports across packages (e.g. @kairos/shared)
+  - Use package name imports across packages (e.g. @bunqsy/shared)
   - Never import from packages/daemon inside packages/frontend
   - Never import execute.ts from anywhere except routes/confirm.ts,
     voice/executor.ts, and intervention/handlers/*.ts
@@ -148,10 +148,10 @@ Testing (where specified):
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║              PREFIX BLOCK A — SESSION A INITIALISATION               ║
-║                    KAIROS Finance v2.0 — Tier 1                      ║
+║                    BUNQSY Finance v2.0 — Tier 1                      ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
-You are Claude Code, acting as the primary engineer for KAIROS Finance,
+You are Claude Code, acting as the primary engineer for BUNQSY Finance,
 an always-on financial guardian built on the bunq API for Hackathon 7.0.
 
 Your authority sources (read in this order before touching any file):
@@ -168,11 +168,11 @@ You are responsible for Phases 0 through 6 ONLY.
   Phase 0:  Signing test gate (HARD GATE — must pass before all else)
   Phase 1:  bunq integration layer (auth, client, execute gateway, webhook, accounts)
   Phase 2:  SQLite data model + memory helpers
-  Phase 3:  Heartbeat loop + KAIROS Score computation + tick log
+  Phase 3:  Heartbeat loop + BUNQSY Score computation + tick log
   Phase 4:  Risk Oracle — 6 sub-agents + aggregator + per-vote WS emission
   Phase 5:  Intervention Engine + Explainability Overlay + all handlers
-  Phase 6:  Core frontend — KAIROSScore, OracleVotingPanel, InterventionCard,
-            useWebSocket hook, useKAIROSScore hook
+  Phase 6:  Core frontend — BUNQSYScore, OracleVotingPanel, InterventionCard,
+            useWebSocket hook, useBUNQSYScore hook
 
 ════════════════════════════════════════════════════════════════════════
 FILES YOU MAY CREATE OR MODIFY THIS SESSION
@@ -214,7 +214,7 @@ packages/daemon/src/memory/interventions.ts
 packages/daemon/src/memory/vector.ts
 packages/daemon/src/heartbeat/loop.ts
 packages/daemon/src/heartbeat/recall.ts
-packages/daemon/src/heartbeat/kairos-score.ts
+packages/daemon/src/heartbeat/bunqsy-score.ts
 packages/daemon/src/heartbeat/tick-log.ts
 packages/daemon/src/oracle/index.ts
 packages/daemon/src/oracle/aggregator.ts
@@ -241,11 +241,11 @@ packages/daemon/tsconfig.json
 
 packages/frontend/src/App.tsx
 packages/frontend/src/main.tsx
-packages/frontend/src/components/KAIROSScore.tsx
+packages/frontend/src/components/BUNQSYScore.tsx
 packages/frontend/src/components/OracleVotingPanel.tsx
 packages/frontend/src/components/InterventionCard.tsx
 packages/frontend/src/hooks/useWebSocket.ts
-packages/frontend/src/hooks/useKAIROSScore.ts
+packages/frontend/src/hooks/useBUNQSYScore.ts
 packages/frontend/package.json
 packages/frontend/tsconfig.json
 packages/frontend/vite.config.ts
@@ -342,17 +342,17 @@ PHASE 2 — Data Model + Memory Helpers
     "npx tsx -e \"import('./packages/daemon/src/memory/db').then(m => m.getDb())
     .then(() => console.log('✅ DB initialised'))\""
 
-PHASE 3 — Heartbeat Loop + KAIROS Score
-  Build order: kairos-score.ts → tick-log.ts → recall.ts → loop.ts
+PHASE 3 — Heartbeat Loop + BUNQSY Score
+  Build order: bunqsy-score.ts → tick-log.ts → recall.ts → loop.ts
   
-  kairos-score.ts:
+  bunqsy-score.ts:
     Read SCORE_WEIGHT_* from environment variables with these defaults:
       SCORE_WEIGHT_BALANCE=0.35
       SCORE_WEIGHT_VELOCITY=0.25
       SCORE_WEIGHT_GOALS=0.25
       SCORE_WEIGHT_UPCOMING=0.15
     Trend computation: compare to last 3 rows of score_log table.
-    Emit { type: 'KAIROS_SCORE', payload: KAIROSScore } over WebSocket
+    Emit { type: 'BUNQSY_SCORE', payload: BUNQSYScore } over WebSocket
     on every tick — even if reasoning is skipped.
   
   loop.ts:
@@ -422,8 +422,8 @@ PHASE 5 — Intervention Engine + Explainability
 PHASE 6 — Core Frontend
   Build order:
     packages/frontend/src/hooks/useWebSocket.ts
-    packages/frontend/src/hooks/useKAIROSScore.ts
-    packages/frontend/src/components/KAIROSScore.tsx
+    packages/frontend/src/hooks/useBUNQSYScore.ts
+    packages/frontend/src/components/BUNQSYScore.tsx
     packages/frontend/src/components/OracleVotingPanel.tsx
     packages/frontend/src/components/InterventionCard.tsx
     packages/frontend/src/App.tsx
@@ -433,12 +433,12 @@ PHASE 6 — Core Frontend
     Must parse and validate the WSMessage envelope type field before returning.
     Must expose: { lastMessage, connectionStatus }
   
-  KAIROSScore.tsx:
+  BUNQSYScore.tsx:
     Score number animates with a 500ms CSS transition (counter counts up/down).
     Colour breakpoints: green > 70, amber 40–70, red < 40.
     Shows trend arrow: ↑ ↓ → with matching colour.
     Shows 4 component bars below the main score.
-    Receives data exclusively from useKAIROSScore hook (KAIROS_SCORE WS messages).
+    Receives data exclusively from useBUNQSYScore hook (BUNQSY_SCORE WS messages).
   
   OracleVotingPanel.tsx:
     6 rows in fixed order:
@@ -455,7 +455,7 @@ PHASE 6 — Core Frontend
   InterventionCard.tsx:
     Slides up from bottom on INTERVENTION WS message (CSS slide-up animation).
     Shows narration text prominently (this is the explainer.ts output).
-    Has expandable "Why did KAIROS do this?" section:
+    Has expandable "Why did BUNQSY do this?" section:
       Renders oracle votes summary (agent + verdict chip + reason per row)
       Shows risk score as a number
       Toggle expand/collapse with animated chevron
@@ -470,7 +470,7 @@ PHASE 6 — Core Frontend
     Only one InterventionCard visible at a time (gate in App.tsx state).
   
   App.tsx layout (top to bottom):
-    <KAIROSScore />
+    <BUNQSYScore />
     <OracleVotingPanel />
     <InterventionCard /> (conditionally rendered, overlays bottom)
     [Placeholder slots for Session B components — render null for now]
@@ -496,7 +496,7 @@ packages/daemon/src/index.ts must:
   6. If WEBHOOK_PUBLIC_URL is set in env: call registerWebhookUrl()
   7. Listen on PORT (default 3001)
   8. Log startup summary:
-     "KAIROS Finance daemon started
+     "BUNQSY Finance daemon started
       BUNQ_ENV: [sandbox|production]
       Port: [PORT]
       Webhook URL: [WEBHOOK_PUBLIC_URL or 'not configured']
@@ -531,15 +531,15 @@ Session A is complete when ALL of the following are true:
   □ Daemon starts without crashing: npm run dev (packages/daemon)
   □ Frontend starts without crashing: npm run dev (packages/frontend)
   □ Navigating to localhost:5173 shows:
-      - KAIROSScore component (number + bars, may show 0 until first tick)
+      - BUNQSYScore component (number + bars, may show 0 until first tick)
       - OracleVotingPanel component (idle skeleton state)
       - Three placeholder slots labelled for Session B
   □ WebSocket connection shows "connected" status in browser console
   □ Heartbeat fires (check daemon logs for "tick" entries every ~30s)
-  □ KAIROS_SCORE WebSocket message received by frontend within 35 seconds
+  □ BUNQSY_SCORE WebSocket message received by frontend within 35 seconds
     of daemon start (verify in browser DevTools → Network → WS)
   □ POST /api/webhook returns 200 for a valid test payload
-  □ GET /api/score returns a valid KAIROSScore JSON response
+  □ GET /api/score returns a valid BUNQSYScore JSON response
 
 If any of the above are false, fix before declaring Session A complete.
 
@@ -558,10 +558,10 @@ If any of the above are false, fix before declaring Session A complete.
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║              PREFIX BLOCK B — SESSION B INITIALISATION               ║
-║                    KAIROS Finance v2.0 — Tier 2                      ║
+║                    BUNQSY Finance v2.0 — Tier 2                      ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
-You are Claude Code, continuing the KAIROS Finance build.
+You are Claude Code, continuing the BUNQSY Finance build.
 Session A (Tier 1) is confirmed complete. You are now building Tier 2.
 
 Your authority sources (read in this order before touching any file):
@@ -637,11 +637,11 @@ during Session B integration):
   packages/daemon/src/oracle/*
   packages/daemon/src/intervention/*
   packages/shared/src/*
-  packages/frontend/src/components/KAIROSScore.tsx
+  packages/frontend/src/components/BUNQSYScore.tsx
   packages/frontend/src/components/OracleVotingPanel.tsx
   packages/frontend/src/components/InterventionCard.tsx
   packages/frontend/src/hooks/useWebSocket.ts
-  packages/frontend/src/hooks/useKAIROSScore.ts
+  packages/frontend/src/hooks/useBUNQSYScore.ts
 
 Session C only:
   packages/frontend/src/components/FraudBlock.tsx   (Session C)
@@ -1024,10 +1024,10 @@ If any of the above are false, fix before declaring Session B complete.
 ```
 ╔══════════════════════════════════════════════════════════════════════╗
 ║              PREFIX BLOCK C — SESSION C INITIALISATION               ║
-║                    KAIROS Finance v2.0 — Tier 3                      ║
+║                    BUNQSY Finance v2.0 — Tier 3                      ║
 ╚══════════════════════════════════════════════════════════════════════╝
 
-You are Claude Code, completing the KAIROS Finance build for demo day.
+You are Claude Code, completing the BUNQSY Finance build for demo day.
 Sessions A and B (Tiers 1 and 2) are confirmed complete.
 You are now building Tier 3: polish and demo readiness.
 
@@ -1077,7 +1077,7 @@ Modify (with permission gate — state intent before modifying):
     → Polish: smooth transitions, loading states
   packages/frontend/src/components/OracleVotingPanel.tsx
     → Polish: row entry animations, verdict reveal animation
-  packages/frontend/src/components/KAIROSScore.tsx
+  packages/frontend/src/components/BUNQSYScore.tsx
     → Polish: number counter animation, colour transition smoothing
 
 Read-only (do not modify unless fixing a critical bug):
@@ -1087,7 +1087,7 @@ Read-only (do not modify unless fixing a critical bug):
   packages/daemon/src/memory/schema.sql
   packages/daemon/src/memory/db.ts
   packages/daemon/src/heartbeat/loop.ts
-  packages/daemon/src/heartbeat/kairos-score.ts
+  packages/daemon/src/heartbeat/bunqsy-score.ts
   packages/daemon/src/oracle/index.ts
   packages/daemon/src/oracle/aggregator.ts
   packages/daemon/src/voice/*
@@ -1109,7 +1109,7 @@ PHASE 12 — FraudBlock Full-Screen Component
   Layout (top to bottom):
     Header:
       "⚠️ Suspicious Transaction Detected"
-      Subtitle: "KAIROS flagged this transaction before it completed."
+      Subtitle: "BUNQSY flagged this transaction before it completed."
     
     Narration section:
       The explainer.ts narration text, displayed large and prominently.
@@ -1126,7 +1126,7 @@ PHASE 12 — FraudBlock Full-Screen Component
     Confidence badge:
       "Fraud Shadow confidence: {confidence * 100}%"
     
-    Expandable "Why did KAIROS flag this?":
+    Expandable "Why did BUNQSY flag this?":
       Same expandable pattern as InterventionCard.tsx
       Shows all 6 oracle votes (not just fraud-shadow)
     
@@ -1137,7 +1137,7 @@ PHASE 12 — FraudBlock Full-Screen Component
       "🚫 Hold to Block" (red, left button):
         On 2s hold complete: POST /api/confirm/:planId/action { action: 'block' }
         Shows hold progress as a filling border animation
-        On success: close modal, show toast "Transaction blocked by KAIROS"
+        On success: close modal, show toast "Transaction blocked by BUNQSY"
       
       "✅ Hold to Allow" (green, right button):
         On 2s hold complete: POST /api/confirm/:planId/action { action: 'allow' }
@@ -1221,7 +1221,7 @@ PHASE 14 — Multi-Account Intelligence
   Extend recall.ts:
     Add allAccounts: AccountSummary[] to RecalledState
     Replace accounts: MonetaryAccount[] with allAccounts in the recall payload
-    KAIROSScore goals component: use goal progress from accountSummaries
+    BUNQSYScore goals component: use goal progress from accountSummaries
   
   Extend balance-sentinel.ts:
     Factor in totalBalance across all accounts (not just primary)
@@ -1288,7 +1288,7 @@ PHASE 15 — Demo Polish + Reset Script
   #!/bin/bash
   # One-command demo startup for judge sessions
   
-  echo "🚀 Starting KAIROS Finance demo environment..."
+  echo "🚀 Starting BUNQSY Finance demo environment..."
   
   # Step 1: Reset demo state
   npx tsx scripts/reset-demo.ts
@@ -1317,7 +1317,7 @@ PHASE 15 — Demo Polish + Reset Script
   FRONTEND_PID=$!
   
   echo ""
-  echo "✅ KAIROS Finance is running"
+  echo "✅ BUNQSY Finance is running"
   echo "   Dashboard: http://localhost:5173"
   echo "   Daemon:    http://localhost:3001"
   echo "   Tunnel:    ${TUNNEL_URL}"
@@ -1338,7 +1338,7 @@ PHASE 15 — Demo Polish + Reset Script
     □ DB accessible (calls getDb(), runs SELECT 1)
     □ Transaction count in DB (must be > 0, from seed)
     □ Daemon health check (GET http://localhost:3001/api/score → assert 200)
-    □ WebSocket connection test (connect, wait for KAIROS_SCORE message, disconnect)
+    □ WebSocket connection test (connect, wait for BUNQSY_SCORE message, disconnect)
     □ Ollama health (GET http://localhost:11434/api/tags → assert nomic-embed-text present)
     □ Whisper model file (stat WHISPER_MODEL_PATH, assert exists)
     □ Dream test (POST /api/dream/trigger, wait 30s, GET /api/dream/latest → assert completed)
@@ -1346,14 +1346,14 @@ PHASE 15 — Demo Polish + Reset Script
     □ Test fraud webhook (POST /api/webhook with pre-crafted fraud payload →
       wait 5s → assert ORACLE_VOTE messages received)
     
-    Print: "✅ All N checks passed. KAIROS is demo-ready." or
+    Print: "✅ All N checks passed. BUNQSY is demo-ready." or
            "❌ N checks failed: [list]. Fix before demo."
   
   ── 15e. UI Animation Polish ──
   
   In this order, add polish to existing components:
   
-  KAIROSScore.tsx:
+  BUNQSYScore.tsx:
     Score number: use a custom counter hook that animates the number from
     its previous value to the new value over 600ms using requestAnimationFrame.
     Colour transition: CSS transition: color 400ms ease on the score number.
@@ -1411,11 +1411,11 @@ Time yourself. It must complete in under 3 minutes.
 
 Validate each beat of the script:
 
-  □ [0:00–0:20] KAIROS Score visible on load. DreamTrigger button fires
+  □ [0:00–0:20] BUNQSY Score visible on load. DreamTrigger button fires
     correctly. DreamBriefing modal opens with DNA card visible.
 
   □ [0:20–0:45] OracleVotingPanel animates all 6 vote rows on test webhook.
-    Fraud Shadow fires with INTERVENE. KAIROS Score drops visibly.
+    Fraud Shadow fires with INTERVENE. BUNQSY Score drops visibly.
 
   □ [0:45–1:10] FraudBlock modal opens. All fraud signals listed. Hold-to-
     block works (2s hold). Score recovers after dismissal.
@@ -1446,13 +1446,13 @@ Session C (and the full build) is complete when ALL of the following are true:
     console errors, or UI glitches
   □ FraudBlock hold-to-confirm works correctly (2s hold required)
   □ Pattern promotion inserts a new pattern after a confirmed intervention
-  □ Multi-account summary shows in KAIROSScore goals component
+  □ Multi-account summary shows in BUNQSYScore goals component
   □ All animation polish applied and visible
   □ prefers-reduced-motion media query in place
   □ Demo reset button works in browser (POST /api/demo/reset)
   □ All Session A and Session B definition-of-done items still passing
 
-Congratulations. KAIROS Finance is demo-ready.
+Congratulations. BUNQSY Finance is demo-ready.
 
 ╔══════════════════════════════════════════════════════════════════════╗
 ║                    END OF PREFIX BLOCK C                             ║
@@ -1496,10 +1496,10 @@ EMERGENCY PRIORITY ORDER (if time is running out)
 Priority 1 — Absolute minimum for any demo:
   Phase 0 gate passed
   Daemon starts without crash
-  Phase 3: KAIROS Score updating in frontend
+  Phase 3: BUNQSY Score updating in frontend
   Phase 4: Oracle voting panel animating on test webhook
   Phase 5: At least one intervention type firing (low-balance handler)
-  Phase 6: KAIROSScore + OracleVotingPanel visible
+  Phase 6: BUNQSYScore + OracleVotingPanel visible
 
 Priority 2 — Strong demo:
   Phase 9: Dream Mode trigger + briefing modal (DNA card is the wow moment)

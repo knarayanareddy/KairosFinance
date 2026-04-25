@@ -1,0 +1,390 @@
+/* ── Reset & Base ────────────────────────────────────────────────────────────── */
+
+*, *::before, *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+:root {
+  /* ── bunq core palette ──────────────────────────────────────────────────── */
+  --bg-base:         #090909;
+  --bg-surface:      rgba(255, 255, 255, 0.042);
+  --bg-surface-alt:  rgba(255, 255, 255, 0.07);
+  --bg-elevated:     #141418;
+
+  --glass-border:    rgba(255, 255, 255, 0.09);
+  --glass-blur:      28px;
+
+  --text-primary:    #ffffff;
+  --text-secondary:  rgba(255, 255, 255, 0.58);
+  --text-muted:      rgba(255, 255, 255, 0.26);
+
+  /* ── bunq brand accents ─────────────────────────────────────────────────── */
+  --accent-cyan:     #00bfff;
+  --accent-blue:     #377ef7;
+  --accent-green:    #00ff95;
+  --accent-purple:   #9c27b0;
+
+  --accent-cyan-glow:   rgba(0, 191, 255, 0.28);
+  --accent-blue-glow:   rgba(55, 126, 247, 0.28);
+  --accent-green-glow:  rgba(0, 255, 149, 0.22);
+
+  /* ── semantic status ────────────────────────────────────────────────────── */
+  --color-green:   #00ff95;
+  --color-yellow:  #ff8c00;
+  --color-red:     #ff3b30;
+
+  --color-green-glow:  rgba(0, 255, 149, 0.22);
+  --color-yellow-glow: rgba(255, 140, 0, 0.22);
+  --color-red-glow:    rgba(255, 59, 48, 0.20);
+
+  /* ── bunq signature gradients ───────────────────────────────────────────── */
+  --gradient-bunq:      linear-gradient(135deg, #00bfff 0%, #00ff95 100%);
+  --gradient-bunq-blue: linear-gradient(135deg, #4000ff 0%, #377ef7 50%, #00bfff 100%);
+
+  /* ── spacing & radius ───────────────────────────────────────────────────── */
+  --radius-sm:   8px;
+  --radius-md:   14px;
+  --radius-lg:   22px;
+  --radius-xl:   30px;
+  --radius-tile: 15px;
+
+  --transition: 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+html, body, #root {
+  height: 100%;
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  background: var(--bg-base);
+  color: var(--text-primary);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* ── Scrollbar ───────────────────────────────────────────────────────────────── */
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+
+/* ── Glassmorphism utility ───────────────────────────────────────────────────── */
+
+.glass {
+  background: var(--bg-surface);
+  backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  -webkit-backdrop-filter: blur(var(--glass-blur)) saturate(140%);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  transition: border-color 0.4s cubic-bezier(0.4, 0, 0.2, 1),
+              box-shadow   0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* Premium glassmorphism — for modals, intervention cards */
+.glass-premium {
+  background: rgba(12, 12, 20, 0.92);
+  backdrop-filter: blur(48px) saturate(200%);
+  -webkit-backdrop-filter: blur(48px) saturate(200%);
+  border: 1px solid rgba(255,255,255,0.10);
+  border-radius: var(--radius-lg);
+}
+
+/* ── Icon Tile — the signature bunq rounded-square ───────────────────────────── */
+
+.bunq-tile {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  border-radius: var(--radius-tile);
+}
+
+/* Named colour variants */
+.bunq-tile-gold    { background: #C4890A; box-shadow: 0 4px 16px rgba(196,137,10,0.40); }
+.bunq-tile-sky     { background: #1A82C4; box-shadow: 0 4px 16px rgba(26,130,196,0.40); }
+.bunq-tile-green   { background: #2DA845; box-shadow: 0 4px 16px rgba(45,168,69,0.40);  }
+.bunq-tile-travel  { background: #1B6038; box-shadow: 0 4px 16px rgba(27,96,56,0.35);   }
+.bunq-tile-pink    { background: #B5179E; box-shadow: 0 4px 16px rgba(181,23,158,0.40); }
+.bunq-tile-cyan    { background: #0891b2; box-shadow: 0 4px 16px rgba(8,145,178,0.35);  }
+.bunq-tile-orange  { background: #c2410c; box-shadow: 0 4px 16px rgba(194,65,12,0.35);  }
+
+/* ── Account list row ────────────────────────────────────────────────────────── */
+
+.bunq-account-row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 15px 0;
+}
+
+.bunq-divider {
+  height: 1px;
+  background: rgba(255,255,255,0.07);
+  margin-left: 68px;
+}
+
+/* ── Quick Action Buttons (circles) ─────────────────────────────────────────── */
+
+.bunq-action-btn {
+  width: 68px;
+  height: 68px;
+  border-radius: 50%;
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  color: #ffffff;
+  transition: transform 0.15s cubic-bezier(0.34,1.56,0.64,1),
+              box-shadow  0.2s ease;
+  position: relative;
+  overflow: hidden;
+}
+
+.bunq-action-btn::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 50%;
+  background: rgba(255,255,255,0.12);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.bunq-action-btn:hover {
+  transform: scale(1.07) translateY(-2px);
+}
+
+.bunq-action-btn:hover::before {
+  opacity: 1;
+}
+
+.bunq-action-btn:active {
+  transform: scale(0.95);
+}
+
+/* ── Bunq rainbow logo stripe ────────────────────────────────────────────────── */
+
+.bunq-rainbow {
+  flex-shrink: 0;
+  background: linear-gradient(180deg,
+    #E53935 0%,    #E53935 14.28%,
+    #FB8C00 14.28%,#FB8C00 28.57%,
+    #FDD835 28.57%,#FDD835 42.86%,
+    #43A047 42.86%,#43A047 57.14%,
+    #1E88E5 57.14%,#1E88E5 71.43%,
+    #3949AB 71.43%,#3949AB 85.71%,
+    #8E24AA 85.71%,#8E24AA 100%
+  );
+}
+
+/* ── Superscript currency display ────────────────────────────────────────────── */
+
+.bunq-bal {
+  display: inline-flex;
+  align-items: flex-start;
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+  color: #ffffff;
+  font-family: 'Inter', system-ui, sans-serif;
+}
+
+.bunq-bal-int {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: 1;
+}
+
+.bunq-bal-dec {
+  font-weight: 700;
+  line-height: 1;
+}
+
+/* ── Spending category staggered row ────────────────────────────────────────── */
+
+.bunq-cat-icon {
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 15px;
+  flex-shrink: 0;
+}
+
+/* ── Keyframe animations ─────────────────────────────────────────────────────── */
+
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeSlideIn {
+  from { opacity: 0; transform: translateX(-12px); }
+  to   { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.35; }
+}
+
+@keyframes ringFill {
+  from { stroke-dashoffset: 503; }
+}
+
+@keyframes scoreCount {
+  from { opacity: 0; transform: scale(0.8); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes glowPulse {
+  0%, 100% { box-shadow: 0 0 20px var(--accent-blue-glow); }
+  50%       { box-shadow: 0 0 40px var(--accent-blue-glow), 0 0 60px var(--accent-blue-glow); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes laserScan {
+  0%   { top: 5%; }
+  50%  { top: 90%; }
+  100% { top: 5%; }
+}
+
+@keyframes pingRing {
+  0%   { transform: scale(1);   opacity: 0.8; }
+  100% { transform: scale(1.4); opacity: 0; }
+}
+
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20%       { transform: translateX(-4px); }
+  40%       { transform: translateX(4px); }
+  60%       { transform: translateX(-3px); }
+  80%       { transform: translateX(3px); }
+}
+
+@keyframes loadingBar {
+  0%   { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50%       { transform: translateY(-6px); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+@keyframes blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.4; }
+}
+
+@keyframes shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position:  200% center; }
+}
+
+/* ── SVG transitions ────────────────────────────────────────────────────────── */
+
+svg circle { transition: stroke 0.5s ease; }
+svg text   { transition: fill   0.5s ease; }
+
+/* ── Base button transition ─────────────────────────────────────────────────── */
+
+button {
+  transition: opacity          0.2s ease,
+              background-color 0.2s ease,
+              border-color     0.2s ease,
+              color            0.2s ease,
+              box-shadow       0.2s ease,
+              transform        0.15s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+/* ── Stealth "Reset Demo" footer button ─────────────────────────────────────── */
+
+.demo-reset-btn {
+  background:     transparent;
+  border:         none;
+  color:          rgba(240, 244, 255, 0.10);
+  font-size:      0.6rem;
+  font-family:    inherit;
+  letter-spacing: 0.08em;
+  cursor:         pointer;
+  padding:        4px 10px;
+  border-radius:  var(--radius-sm);
+  transition:     color 0.3s ease, background-color 0.3s ease;
+  user-select:    none;
+}
+
+.demo-reset-btn:hover {
+  color:            rgba(255, 59, 48, 0.65);
+  background-color: rgba(255, 59, 48, 0.06);
+}
+
+/* ── Gradient text helper ───────────────────────────────────────────────────── */
+
+.gradient-text {
+  background: var(--gradient-bunq);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* ── Montserrat heading helper ──────────────────────────────────────────────── */
+
+.bunq-heading {
+  font-family: 'Montserrat', 'Inter', sans-serif;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+/* ── bunq pill badge ────────────────────────────────────────────────────────── */
+
+.bunq-badge {
+  background:    rgba(0, 191, 255, 0.10);
+  border:        1px solid rgba(0, 191, 255, 0.22);
+  border-radius: 100px;
+  padding:       3px 10px;
+  font-size:     10px;
+  font-weight:   700;
+  color:         #00bfff;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  font-family:   'Montserrat', sans-serif;
+}
+
+/* ── Live dot ───────────────────────────────────────────────────────────────── */
+
+.live-dot {
+  display:       inline-block;
+  width:         8px;
+  height:        8px;
+  border-radius: 50%;
+  background:    var(--color-green);
+  animation:     pulse 2s ease-in-out infinite;
+  box-shadow:    0 0 8px var(--color-green-glow);
+}
+
+/* ── Section label ──────────────────────────────────────────────────────────── */
+
+.section-label {
+  font-size:      10px;
+  letter-spacing: 0.14em;
+  color:          rgba(255, 255, 255, 0.26);
+  font-weight:    700;
+  text-transform: uppercase;
+}

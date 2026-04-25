@@ -1,9 +1,10 @@
 {
-  "name": "kairos-finance",
+  "name": "bunqsy",
   "private": true,
   "scripts": {
     "dev": "turbo run dev",
-    "build": "turbo run build"
+    "build": "turbo run build",
+    "demo": "npx localtunnel --port 5173"
   },
   "workspaces": [
     "packages/*"
@@ -13,5 +14,6 @@
     "tsx": "latest",
     "typescript": "latest",
     "dotenv": "latest"
-  }
+  },
+  "packageManager": "npm@11.11.0"
 }

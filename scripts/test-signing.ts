@@ -62,7 +62,7 @@ async function runGate() {
     // 2. Register device-server
     console.log('2. Registering device-server...');
     const deviceBody = JSON.stringify({
-      description: 'KairosFinance-Gate-Test',
+      description: 'BunqsyFinance-Gate-Test',
       secret: process.env.BUNQ_API_KEY,
       permitted_ips: ['*'],
     });

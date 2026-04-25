@@ -1,4 +1,4 @@
-# Spec compliance matrix (audit grid) for KAIROS Finance v2.0
+# Spec compliance matrix (audit grid) for BUNQSY Finance v2.0
 
 This is a checklist-style audit matrix enumerating the **files, functions, types, routes, and WS messages**
 explicitly mentioned in:
@@ -81,7 +81,7 @@ When the docs reference a type/module but do not define its exact fields, this m
 | `packages/daemon/src/bunq/accounts.ts` | `getAllAccounts`, `getPrimaryAccount`, `getSavingsAccounts`, `getTotalBalance` | BunqClient → accounts/balances | Read-only | If bunq GET fails: bubble error |
 | `packages/daemon/src/routes/webhook.ts` | `POST /api/webhook` | HTTP → event + force tick | Must validate signature | Invalid should return non-200 |
 | `packages/daemon/src/routes/confirm.ts` | confirm/cancel/action endpoints | HTTP → plan status + execute | One of few allowed to call gateway | Never execute PENDING plan |
-| `packages/daemon/src/routes/score.ts` | `GET /api/score` fallback | HTTP → latest score | Matches last KAIROSScore | If not computed yet: return clear empty state (Inference) |
+| `packages/daemon/src/routes/score.ts` | `GET /api/score` fallback | HTTP → latest score | Matches last BUNQSYScore | If not computed yet: return clear empty state (Inference) |
 | `packages/daemon/src/routes/ws.ts` | WS upgrade handler at `/ws` | WS → stream | Must emit only validated WSMessage | Prevent bad payloads via Zod |
 | `packages/daemon/src/index.ts` | daemon bootstrap | env → running daemon | init DB, session, plugins, routes, heartbeat | Fail fast on DB/auth init errors |
 
@@ -103,13 +103,13 @@ When the docs reference a type/module but do not define its exact fields, this m
 
 ---
 
-## Phase 3 — Heartbeat loop + KAIROS Score
+## Phase 3 — Heartbeat loop + BUNQSY Score
 
 | Artifact | Must implement | Invariants |
 |---|---|---|
 | `packages/daemon/src/heartbeat/loop.ts` | tick every 30s; reason every 10 ticks or forced; don’t stack interventions | `TICK_INTERVAL_MS=30_000`, `REASON_INTERVAL_TICKS=10`, `activeInterventionId` guard |
 | `packages/daemon/src/heartbeat/recall.ts` | `recall(client, db): Promise<RecalledState>` | Must produce minimal slice from CBS |
-| `packages/daemon/src/heartbeat/kairos-score.ts` | compute score + components + trend | **Conflict note:** CBS trend compares to last 3 **tick_log** rows; PREFIX says **score_log**. Authority order implies follow CBS unless you update docs. |
+| `packages/daemon/src/heartbeat/bunqsy-score.ts` | compute score + components + trend | **Conflict note:** CBS trend compares to last 3 **tick_log** rows; PREFIX says **score_log**. Authority order implies follow CBS unless you update docs. |
 | `packages/daemon/src/heartbeat/tick-log.ts` | append tick log writer | Insert-only behavior for history tables |
 | `packages/shared/src/types/ws.ts` | WSMessage union includes PLAN_CREATED + FORECAST_READY | Must match CBS union |
 
@@ -145,8 +145,8 @@ When the docs reference a type/module but do not define its exact fields, this m
 | Artifact | Must implement | Invariants |
 |---|---|---|
 | `hooks/useWebSocket.ts` | WS connect + exponential backoff | PREFIX specifies backoff pattern |
-| `hooks/useKAIROSScore.ts` | reduce KAIROS_SCORE into state | score only from WS |
-| `components/KAIROSScore.tsx` | animated score + bars + trend arrow | breakpoints: green>70, amber 40–70, red<40 |
+| `hooks/useBUNQSYScore.ts` | reduce BUNQSY_SCORE into state | score only from WS |
+| `components/BUNQSYScore.tsx` | animated score + bars + trend arrow | breakpoints: green>70, amber 40–70, red<40 |
 | `components/OracleVotingPanel.tsx` | 6 fixed rows; animate on votes | no vote batching |
 | `components/InterventionCard.tsx` | slide-up; narration + “Why” | confirm/cancel call daemon routes |
 | `App.tsx` | compose dashboard | Tier-1 visible on load |
@@ -260,7 +260,7 @@ When the docs reference a type/module but do not define its exact fields, this m
 
 ## D2) WebSocket message types
 
-- `KAIROS_SCORE`
+- `BUNQSY_SCORE`
 - `ORACLE_VOTE`
 - `ORACLE_VERDICT`
 - `INTERVENTION`

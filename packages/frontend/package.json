@@ -1,5 +1,5 @@
 {
-  "name": "@kairos/frontend",
+  "name": "@bunqsy/frontend",
   "version": "1.0.0",
   "private": true,
   "scripts": {
@@ -7,12 +7,16 @@
     "build": "vite build"
   },
   "dependencies": {
+    "@bunqsy/shared": "*",
     "react": "^18.3.1",
-    "react-dom": "^18.3.1"
+    "react-dom": "^18.3.1",
+    "recharts": "^3.8.1"
   },
   "devDependencies": {
-    "vite": "^5.4.0",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^4.3.1",
-    "typescript": "latest"
+    "typescript": "latest",
+    "vite": "^5.4.0"
   }
 }
