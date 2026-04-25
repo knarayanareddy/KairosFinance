@@ -59,11 +59,6 @@ const GOAL_TILES = [
   { icon: '🐷', tileClass: 'bunq-tile-pink',   label: 'Emergency Fund', amount: 3200, goal: undefined, currency: '€' },
 ] as const;
 
-const ACTION_BTNS = [
-  { icon: '↑', bg: '#FF6D00', shadow: 'rgba(255,109,0,0.45)',   label: 'Send'    },
-  { icon: '↓', bg: '#1565C0', shadow: 'rgba(21,101,192,0.45)',  label: 'Receive' },
-  { icon: '+', bg: '#7B1FA2', shadow: 'rgba(123,31,162,0.45)',  label: 'New'     },
-] as const;
 
 const SPEND_CATS: Array<{ icon: string; bg: string; label: string; txCount: number; amount: number; pct: number }> = [
   { icon: '🏠', bg: '#7A5200', label: 'Rent & Bills',  txCount: 2, amount: 950.00,  pct: 70 },
@@ -471,33 +466,6 @@ export function App(): React.JSX.Element {
               ))}
 
               <div style={{ height: '16px' }} />
-            </div>
-
-            {/* ── Quick Action Buttons ── matches 03_action_buttons.png ─── */}
-            <div style={{
-              background: 'rgba(255,255,255,0.042)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '22px',
-              padding: '22px 20px',
-              display: 'flex', justifyContent: 'center', gap: '28px',
-            }}>
-              {ACTION_BTNS.map((btn) => (
-                <div key={btn.label} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '9px' }}>
-                  <button
-                    className="bunq-action-btn"
-                    style={{ background: btn.bg, boxShadow: `0 8px 28px ${btn.shadow}` }}
-                  >
-                    <span style={{
-                      fontSize: '26px', fontWeight: 900, color: '#fff',
-                      lineHeight: 1, letterSpacing: '-0.05em',
-                      fontFamily: "'Montserrat', sans-serif",
-                    }}>
-                      {btn.icon}
-                    </span>
-                  </button>
-                  <span className="section-label">{btn.label}</span>
-                </div>
-              ))}
             </div>
 
             {/* ── Voice Orb ──────────────────────────────────────────────── */}
