@@ -29,7 +29,8 @@ export function useWebSocket(): WSState {
   const reconnectTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const connect = useCallback(() => {
-    const ws = new WebSocket(`ws://${window.location.host}/ws`);
+    const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${proto}//${window.location.host}/ws`);
     wsRef.current = ws;
 
     ws.onopen = () => {

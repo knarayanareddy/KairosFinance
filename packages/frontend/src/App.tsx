@@ -401,6 +401,20 @@ export function App(): React.JSX.Element {
           </div>
         )}
 
+        {/* ── Voice Command — top center ───────────────────────────────── */}
+        <div className="glass" style={{ marginBottom: '14px', padding: '16px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', maxWidth: '560px', margin: '0 auto 14px' }}>
+          <span className="section-label">Voice Command</span>
+          <VoiceOrb
+            activeIntervention={ws.intervention ? {
+              id: ws.intervention.id,
+              planId: ws.intervention.executionPlanId,
+            } : null}
+            onActionTriggered={(action) => {
+              if (action === 'trigger_dream') setDreamRunning(true);
+            }}
+          />
+        </div>
+
         {/* 3-column grid */}
         <div style={{ display: 'grid', gridTemplateColumns: '340px 1fr 340px', gap: '18px', alignItems: 'start' }}>
 
@@ -466,20 +480,6 @@ export function App(): React.JSX.Element {
               ))}
 
               <div style={{ height: '16px' }} />
-            </div>
-
-            {/* ── Voice Orb ──────────────────────────────────────────────── */}
-            <div className="glass" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
-              <span className="section-label" style={{ alignSelf: 'flex-start' }}>Voice Command</span>
-              <VoiceOrb
-                activeIntervention={ws.intervention ? {
-                  id: ws.intervention.id,
-                  planId: ws.intervention.executionPlanId,
-                } : null}
-                onActionTriggered={(action) => {
-                  if (action === 'trigger_dream') setDreamRunning(true);
-                }}
-              />
             </div>
 
           </div>
