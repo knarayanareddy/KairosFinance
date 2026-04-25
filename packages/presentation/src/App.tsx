@@ -56,7 +56,7 @@ function SlideHero({ active }: { active: boolean }) {
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-full overflow-hidden">
-      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(/images/hero-bg.jpg)' }} />
+      <div className="absolute inset-0 bg-cover bg-center" style={{ backgroundImage: 'url(./images/hero-bg.jpg)' }} />
       <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.85) 0%, rgba(0,0,0,0.6) 50%, #000 100%)' }} />
       <div className="absolute inset-0 opacity-[0.06]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.15) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.15) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
 
@@ -764,7 +764,7 @@ function SlideDreamMode({ active }: { active: boolean }) {
       <div className={`grid grid-cols-2 gap-8 max-w-5xl w-full transition-all duration-700 ${v2 ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-10'}`}>
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
           <div style={{ position: 'relative', width: '100%', borderRadius: 24, overflow: 'hidden', marginBottom: 16, aspectRatio: '16/9' }}>
-            <img src="/images/dream-mode.jpg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Dream Mode" />
+            <img src="./images/dream-mode.jpg" style={{ width: '100%', height: '100%', objectFit: 'cover' }} alt="Dream Mode" />
             <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, #000 0%, transparent 60%)' }} />
             <div style={{ position: 'absolute', bottom: 16, left: 16, right: 16 }}>
               <div style={{ fontSize: 15, fontWeight: 700, color: '#fff' }}>Dream Mode</div>
@@ -1065,7 +1065,7 @@ function SlideClosing({ active }: { active: boolean }) {
 
   return (
     <div className="relative flex flex-col items-center justify-center min-h-full overflow-hidden">
-      <div className="absolute inset-0 bg-cover bg-center scale-105" style={{ backgroundImage: 'url(/images/hero-bg.jpg)' }} />
+      <div className="absolute inset-0 bg-cover bg-center scale-105" style={{ backgroundImage: 'url(./images/hero-bg.jpg)' }} />
       <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 50%, #000 100%)' }} />
       <div className="absolute inset-0 opacity-[0.05]" style={{ backgroundImage: 'linear-gradient(rgba(255,255,255,0.2) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.2) 1px, transparent 1px)', backgroundSize: '64px 64px' }} />
 
