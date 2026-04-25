@@ -1,0 +1,29 @@
+# Dependency directories
+node_modules/
+
+# Build outputs
+dist/
+.turbo/
+build/
+
+# Environment / Private Keys
+.env
+.env.local
+.env.*.local
+
+# Databases
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+kairos.db*
+bunqsy.db*
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# OS Files
+.DS_Store
+Thumbs.db
