@@ -26,6 +26,10 @@ export interface TransactionRow {
   is_recurring: 0 | 1;
   created_at: string;
   synced_at: string;
+  receipt_id: string | null;
+  categorized_at: string | null;
+  journal_entry_id: string | null;
+  je_category: string | null;
 }
 
 export interface PatternRow {

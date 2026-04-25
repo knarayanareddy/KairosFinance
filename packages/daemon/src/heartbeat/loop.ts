@@ -1,4 +1,4 @@
-import type { BUNQSYScore, OracleVerdict, InterventionPayload, ScoreDeltaExplainPayload } from '@bunqsy/shared';
+import type { BUNQSYScore, OracleVerdict, InterventionPayload, ScoreDeltaExplainPayload, WSMessage } from '@bunqsy/shared';
 import { getDb } from '../memory/db.js';
 import { type BunqClient } from '../bunq/client.js';
 import { recall, type RecallSnapshot } from './recall.js';
@@ -17,6 +17,7 @@ export interface HeartbeatDeps {
   onScoreDelta?: (payload: ScoreDeltaExplainPayload) => void;
   onIntervention?: (payload: InterventionPayload) => void;
   onTickRecord?: (snapshot: RecallSnapshot) => void;
+  onBookkeepingUpdate?: (msg: WSMessage) => void;
   onError?: (err: Error) => void;
 }
 
@@ -61,6 +62,39 @@ export async function runTick(deps: HeartbeatDeps): Promise<void> {
         interventionId = dispatched.id;
         deps.onIntervention?.(dispatched);
       }
+    }
+  }
+
+  // ── Auto-categorize new transactions (bookkeeping) ─────────────────────────
+  if (process.env['BOOKKEEPING_AUTO_CATEGORIZE'] === 'true') {
+    try {
+      const { categorizePending } = await import('../bookkeeping/categorizer.js');
+      const { getPendingReviewCount } = await import('../bookkeeping/review-queue.js');
+      const { getUncategorizedCount } = await import('../bookkeeping/ledger.js');
+      const { checkVatReminders } = await import('../bookkeeping/vat-tracker.js');
+
+      const categorized = await categorizePending(db, 5);
+      if (categorized > 0) {
+        console.log(`[heartbeat] Bookkeeping: categorized ${categorized} transactions`);
+        const pending = getPendingReviewCount(db);
+        const uncategorized = getUncategorizedCount(db);
+        deps.onBookkeepingUpdate?.({
+          type: 'review_queue_update',
+          payload: { pendingCount: pending },
+        });
+        deps.onBookkeepingUpdate?.({
+          type: 'books_up_to_date',
+          payload: { categorizedCount: categorized, uncategorizedCount: uncategorized },
+        });
+      }
+
+      // VAT reminders
+      const reminders = checkVatReminders(db);
+      for (const reminder of reminders) {
+        deps.onBookkeepingUpdate?.({ type: 'vat_reminder', payload: reminder });
+      }
+    } catch (err: unknown) {
+      console.warn('[heartbeat] Bookkeeping auto-categorize error:', err instanceof Error ? err.message : String(err));
     }
   }
 

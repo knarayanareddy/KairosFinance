@@ -8,6 +8,7 @@ import {
   handleTriggerDream,
   handleSimulateFraud,
   handleSimulateSalary,
+  handleFundSandbox,
   handleReadScore,
   handleReadInterventions,
   handleReadForecast,
@@ -222,6 +223,11 @@ export async function registerVoiceRoute(
     // ── System commands ───────────────────────────────────────────────────────
     if (intent === 'trigger_dream') {
       const result = await handleTriggerDream(db, wsEmit);
+      return reply.send({ kind: 'response', action: intent, ...result, transcript });
+    }
+
+    if (intent === 'fund_sandbox') {
+      const result = await handleFundSandbox(db, getAID?.() ?? 1, triggerTick);
       return reply.send({ kind: 'response', action: intent, ...result, transcript });
     }
 

@@ -2,6 +2,7 @@ import { v4 as uuid } from 'uuid';
 import type Database from 'better-sqlite3';
 import type { WSMessage, ScoreLogRow } from '@bunqsy/shared';
 import { triggerDream } from '../dream/trigger.js';
+import { createExecutionPlan, confirmPlan, executePlan } from '../bunq/execute.js';
 
 export interface ActionResult {
   spokenResponse: string;
@@ -46,6 +47,51 @@ export async function handleTriggerDream(
       'Dream mode activated. I am now analysing your spending patterns and financial behaviours from the past 30 days. ' +
       'This takes a couple of minutes. Say "read dream report" when you are ready to hear the briefing.',
   };
+}
+
+// ─── Sandbox funding ──────────────────────────────────────────────────────────
+
+export async function handleFundSandbox(
+  db: Database.Database,
+  accountId: number,
+  triggerTick: (() => Promise<void>) | undefined,
+): Promise<ActionResult> {
+  if (process.env['BUNQ_ENV'] === 'production') {
+    return { spokenResponse: 'Sandbox funding is only available in the sandbox environment.' };
+  }
+
+  const sessionRow = db
+    .prepare(`SELECT user_id FROM sessions ORDER BY created_at DESC LIMIT 1`)
+    .get() as { user_id: number } | undefined;
+
+  if (!sessionRow) {
+    return { spokenResponse: 'No active session found. Please restart the daemon.' };
+  }
+
+  try {
+    const plan = await createExecutionPlan(
+      [{
+        id:          uuid(),
+        type:        'SANDBOX_FUND',
+        description: 'Request €500 from bunq Sugar Daddy sandbox alias',
+        payload:     { accountId, amount: '500' },
+      }],
+      'Requesting €500 from the bunq sandbox Sugar Daddy.',
+    );
+    await confirmPlan(plan.id);
+    await executePlan(plan.id);
+
+    if (triggerTick) setTimeout(() => { void triggerTick().catch(() => {}); }, 1500);
+
+    return {
+      spokenResponse:
+        'Done. Five hundred euros has been requested from the bunq sandbox Sugar Daddy. ' +
+        'Your balance will update in a moment.',
+    };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    return { spokenResponse: `Sandbox funding failed: ${message}` };
+  }
 }
 
 // ─── Demo simulations ─────────────────────────────────────────────────────────

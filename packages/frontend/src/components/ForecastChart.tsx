@@ -84,6 +84,127 @@ function CustomDot(props: {
   return <circle cx={cx} cy={cy} r={4} fill="#ff1500" stroke="#000" strokeWidth={2} />;
 }
 
+// ─── Milestone derivation ──────────────────────────────────────────────────────
+
+interface Milestone {
+  icon:    string;
+  label:   string;
+  sub:     string;
+  amount:  number;
+  color:   string;
+}
+
+function deriveMilestones(data: ForecastPoint[]): Milestone[] {
+  if (data.length === 0) return [];
+
+  // Lowest Point
+  let lowestIdx = 0;
+  for (let i = 1; i < data.length; i++) {
+    if ((data[i]?.projectedBalance ?? Infinity) < (data[lowestIdx]?.projectedBalance ?? Infinity)) lowestIdx = i;
+  }
+  const lowestPoint = data[lowestIdx];
+
+  // Post-Salary Peak: max balance on or after the first SALARY event (or global max if no salary)
+  const salaryIdx = data.findIndex(d => d.events.some(e => e.type === 'SALARY'));
+  let peakIdx = 0;
+  const searchFrom = salaryIdx >= 0 ? salaryIdx : 0;
+  for (let i = searchFrom; i < data.length; i++) {
+    if ((data[i]?.projectedBalance ?? 0) > (data[peakIdx]?.projectedBalance ?? 0)) peakIdx = i;
+  }
+  const peakPoint = data[peakIdx];
+
+  // Rent Buffer: balance on the day of the first RENT event
+  const rentIdx = data.findIndex(d => d.events.some(e => e.type === 'RENT'));
+  const rentPoint = rentIdx >= 0 ? data[rentIdx] : null;
+
+  const milestones: Milestone[] = [
+    {
+      icon:   '📉',
+      label:  'Lowest Point',
+      sub:    `Day ${lowestIdx + 1}`,
+      amount: lowestPoint?.projectedBalance ?? 0,
+      color:  '#f59e0b',
+    },
+    {
+      icon:   '🚀',
+      label:  'Post-Salary Peak',
+      sub:    salaryIdx >= 0 ? `Day ${peakIdx + 1}` : 'No salary detected',
+      amount: peakPoint?.projectedBalance ?? 0,
+      color:  '#00ff95',
+    },
+    {
+      icon:   '🏡',
+      label:  'Rent Buffer',
+      sub:    rentPoint ? 'After rent' : 'No rent detected',
+      amount: rentPoint?.projectedBalance ?? 0,
+      color:  '#a78bfa',
+    },
+  ];
+
+  return milestones;
+}
+
+// ─── Upcoming events derivation ────────────────────────────────────────────────
+
+interface UpcomingEvent {
+  icon:        string;
+  label:       string;
+  daySub:      string;
+  amount?:     number;
+  isIncome:    boolean;
+  highlight:   boolean;
+}
+
+const EVENT_COLORS: Record<string, string> = {
+  RENT:         '#f59e0b',
+  SALARY:       '#00ff95',
+  SUBSCRIPTION: 'rgba(255,255,255,0.45)',
+  IMPULSE_RISK: '#ff6a00',
+  GOAL_MILESTONE: '#00bfff',
+};
+
+const EVENT_LABELS: Record<string, string> = {
+  RENT:         'Rent Payment',
+  SALARY:       'Salary',
+  SUBSCRIPTION: '',
+  IMPULSE_RISK: 'Impulse Risk',
+  GOAL_MILESTONE: 'Goal Milestone',
+};
+
+function deriveUpcomingEvents(data: ForecastPoint[]): UpcomingEvent[] {
+  const result: UpcomingEvent[] = [];
+  for (let i = 0; i < data.length; i++) {
+    const point = data[i];
+    if (!point || point.events.length === 0) continue;
+    for (const ev of point.events) {
+      const dayNum = i + 1;
+      const dayOfMonth = new Date(point.date + 'T12:00:00').getDate();
+      const daySub = `Day ${dayNum} (${dayOfMonth}${ordinal(dayOfMonth)})`;
+      const label = ev.type === 'SUBSCRIPTION'
+        ? ev.description
+        : (ev.description || EVENT_LABELS[ev.type] || ev.type);
+      const fullLabel = ev.type === 'SALARY' && !label.startsWith('Salary')
+        ? `Salary — ${label}`
+        : label;
+      result.push({
+        icon:      EVENT_ICONS[ev.type] ?? '📌',
+        label:     fullLabel,
+        daySub,
+        amount:    ev.amount,
+        isIncome:  ev.type === 'SALARY' || ev.type === 'GOAL_MILESTONE',
+        highlight: ev.type === 'RENT' || ev.type === 'SALARY',
+      });
+    }
+  }
+  return result;
+}
+
+function ordinal(n: number): string {
+  const s = ['th', 'st', 'nd', 'rd'];
+  const v = n % 100;
+  return s[(v - 20) % 10] ?? s[v] ?? s[0] ?? 'th';
+}
+
 // ─── Main component ────────────────────────────────────────────────────────────
 
 export function ForecastChart(): React.JSX.Element {
@@ -219,20 +340,111 @@ export function ForecastChart(): React.JSX.Element {
         </ResponsiveContainer>
       </div>
 
-      {/* Event legend */}
-      <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-        {[
-          { icon: '🏠', label: 'Rent',        color: '#ff1500' },
-          { icon: '💰', label: 'Salary',      color: '#00ff95' },
-          { icon: '🔄', label: 'Subscription',color: '#00bfff' },
-          { icon: '⚡', label: 'Impulse risk', color: '#ff6a00' },
-        ].map(item => (
-          <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '4px', fontSize: '11px', color: 'rgba(255,255,255,0.32)' }}>
-            <span>{item.icon}</span>
-            <span style={{ color: item.color }}>{item.label}</span>
+      {/* ── Milestone cards ──────────────────────────────────────────────── */}
+      {(() => {
+        const milestones = deriveMilestones(data);
+        return (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '10px' }}>
+            {milestones.map(m => (
+              <div key={m.label} style={{
+                background: 'rgba(255,255,255,0.025)',
+                border: `1px solid ${m.color}22`,
+                borderRadius: '14px',
+                padding: '14px 16px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '4px',
+              }}>
+                <div style={{ fontSize: '18px', lineHeight: 1 }}>{m.icon}</div>
+                <div style={{
+                  fontSize: '22px', fontWeight: 800,
+                  color: m.color,
+                  letterSpacing: '-0.03em',
+                  fontFamily: "'Montserrat', sans-serif",
+                  lineHeight: 1.1,
+                  marginTop: '4px',
+                }}>
+                  €{m.amount.toLocaleString('en-US')}
+                </div>
+                <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.70)' }}>
+                  {m.label}
+                </div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.30)' }}>
+                  {m.sub}
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+        );
+      })()}
+
+      {/* ── Upcoming Events ───────────────────────────────────────────────── */}
+      {(() => {
+        const events = deriveUpcomingEvents(data);
+        if (events.length === 0) return null;
+        return (
+          <div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '12px' }}>
+              <div style={{
+                width: '28px', height: '28px', borderRadius: '8px',
+                background: 'rgba(255,255,255,0.06)',
+                display: 'flex', alignItems: 'center', justifyContent: 'center',
+                fontSize: '14px', flexShrink: 0,
+              }}>📅</div>
+              <div>
+                <div style={{ fontSize: '12px', fontWeight: 700, color: 'rgba(255,255,255,0.75)' }}>
+                  Upcoming Events
+                </div>
+                <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.28)' }}>
+                  Detected from transaction history
+                </div>
+              </div>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+              {events.slice(0, 6).map((ev, i) => (
+                <div key={i} style={{
+                  display: 'flex', alignItems: 'center', gap: '12px',
+                  padding: '11px 14px',
+                  background: ev.highlight
+                    ? (ev.isIncome ? 'rgba(0,255,149,0.04)' : 'rgba(245,158,11,0.04)')
+                    : 'rgba(255,255,255,0.02)',
+                  border: `1px solid ${ev.highlight
+                    ? (ev.isIncome ? 'rgba(0,255,149,0.12)' : 'rgba(245,158,11,0.15)')
+                    : 'rgba(255,255,255,0.05)'}`,
+                  borderRadius: '12px',
+                }}>
+                  <div style={{
+                    width: '32px', height: '32px', borderRadius: '10px',
+                    background: 'rgba(255,255,255,0.05)',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: '15px', flexShrink: 0,
+                  }}>
+                    {ev.icon}
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ fontSize: '12px', fontWeight: 600, color: 'rgba(255,255,255,0.80)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {ev.label}
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.30)', marginTop: '2px' }}>
+                      {ev.daySub}
+                    </div>
+                  </div>
+                  {ev.amount !== undefined && (
+                    <div style={{
+                      fontSize: '13px', fontWeight: 700, flexShrink: 0,
+                      color: ev.isIncome
+                        ? '#00ff95'
+                        : EVENT_COLORS[Object.keys(EVENT_ICONS).find(k => EVENT_ICONS[k] === ev.icon) ?? ''] ?? 'rgba(255,255,255,0.55)',
+                    }}>
+                      {ev.isIncome ? '+' : ''}€{ev.amount.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 }

@@ -4,6 +4,7 @@ export type VoiceIntent =
   | 'trigger_dream'
   | 'simulate_fraud'
   | 'simulate_salary'
+  | 'fund_sandbox'
   | 'read_score'
   | 'read_interventions'
   | 'read_forecast'
@@ -16,7 +17,8 @@ const SYSTEM = `Classify the voice command into exactly one category. Reply with
 
 trigger_dream   — trigger dream mode, analyze spending overnight, run dream analysis, start dream
 simulate_fraud  — simulate fraud, fake fraud transaction, test fraud detection, fraud event
-simulate_salary — simulate salary, salary in, add salary, pretend salary came in, fake income
+simulate_salary — simulate salary, salary in, add salary, pretend salary came in, fake income, salary arrived
+fund_sandbox    — fund sandbox, add test funds, get sandbox money, top up sandbox, sugar daddy, add funds to test account
 read_score      — what is my score, check my score, BUNQSY score, financial health, how am I doing
 read_interventions — show my alerts, what are my warnings, any interventions, check alerts
 read_forecast   — show forecast, future balance, 30-day outlook, what will my balance be
@@ -31,7 +33,8 @@ function fastMatch(t: string): VoiceIntent | null {
   if (/\b(no|cancel|deny|stop|abort|block it|never mind|reject|decline)\b/.test(t)) return 'deny';
   if (/dream/.test(t) && /trigger|start|run|activate|mode/.test(t)) return 'trigger_dream';
   if (/\bfraud\b/.test(t)) return 'simulate_fraud';
-  if (/salary|income/.test(t) && /sim|fake|pretend|trigger|add|inject/.test(t)) return 'simulate_salary';
+  if (/salary/.test(t)) return 'simulate_salary';
+  if (/fund.*(sandbox|test)|sandbox.*(fund|money|top.?up)|sugar.?daddy|test.?fund/.test(t)) return 'fund_sandbox';
   if (/dream/.test(t) && /report|briefing|result|latest|read/.test(t)) return 'read_dream_report';
   if (/\bscore\b/.test(t)) return 'read_score';
   if (/interven|alert|warn/.test(t)) return 'read_interventions';
@@ -56,7 +59,7 @@ export async function classifyIntent(transcript: string): Promise<VoiceIntent> {
     });
     const raw = (msg.content[0]?.type === 'text' ? msg.content[0].text : '').trim().toLowerCase();
     const valid: VoiceIntent[] = [
-      'trigger_dream', 'simulate_fraud', 'simulate_salary',
+      'trigger_dream', 'simulate_fraud', 'simulate_salary', 'fund_sandbox',
       'read_score', 'read_interventions', 'read_forecast', 'read_dream_report',
       'confirm', 'deny', 'financial',
     ];

@@ -27,9 +27,10 @@ interface ActiveIntervention {
 interface Props {
   onPlanConfirmed?: (planId: string) => void;
   activeIntervention?: ActiveIntervention | null;
+  onActionTriggered?: (action: string) => void;
 }
 
-export function VoiceOrb({ onPlanConfirmed, activeIntervention }: Props): React.JSX.Element {
+export function VoiceOrb({ onPlanConfirmed, activeIntervention, onActionTriggered }: Props): React.JSX.Element {
   const [orbState, setOrbState] = useState<OrbState>('idle');
   const [plan, setPlan] = useState<VoicePlan | null>(null);
   const [responseMsg, setResponseMsg] = useState('');
@@ -125,6 +126,7 @@ export function VoiceOrb({ onPlanConfirmed, activeIntervention }: Props): React.
           if (result.kind === 'confirmed' || result.kind === 'denied') {
             setPendingPlanId(null);
           }
+          if (result.action) onActionTriggered?.(result.action);
           setResponseMsg(result.spokenResponse);
           setOrbState('response_ready');
           void speakText(result.spokenResponse);

@@ -207,3 +207,105 @@ CREATE TABLE IF NOT EXISTS forecast_cache (
   expires_at   TEXT    NOT NULL,
   data         TEXT    NOT NULL   -- JSON: ForecastPoint[]
 );
+
+-- ─── Bookkeeping: chart of accounts ──────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS chart_of_accounts (
+  code             TEXT PRIMARY KEY,
+  name             TEXT NOT NULL,
+  account_type     TEXT NOT NULL,  -- ASSET | LIABILITY | EQUITY | INCOME | EXPENSE
+  deductibility_pct INTEGER NOT NULL DEFAULT 100,
+  vat_rate         TEXT NOT NULL DEFAULT 'EXEMPT'
+);
+
+INSERT OR IGNORE INTO chart_of_accounts VALUES
+  ('1000','Checking Account',    'ASSET',     100, 'EXEMPT'),
+  ('1010','Savings Account',     'ASSET',     100, 'EXEMPT'),
+  ('1200','Accounts Receivable', 'ASSET',     100, 'EXEMPT'),
+  ('1400','VAT Receivable',      'ASSET',     100, 'EXEMPT'),
+  ('2000','Accounts Payable',    'LIABILITY', 100, 'EXEMPT'),
+  ('2200','VAT Payable',         'LIABILITY', 100, 'EXEMPT'),
+  ('3000','Equity',              'EQUITY',    100, 'EXEMPT'),
+  ('3100','Retained Earnings',   'EQUITY',    100, 'EXEMPT'),
+  ('4000','Revenue',             'INCOME',    100, 'EXEMPT'),
+  ('4100','Other Income',        'INCOME',    100, 'EXEMPT'),
+  ('5000','Cost of Sales',       'EXPENSE',   100, '21'),
+  ('5100','Payroll',             'EXPENSE',   100, 'EXEMPT'),
+  ('5200','Software & SaaS',     'EXPENSE',   100, '21'),
+  ('5300','Hardware & Equipment','EXPENSE',   100, '21'),
+  ('5400','Office Supplies',     'EXPENSE',   100, '21'),
+  ('5500','Professional Fees',   'EXPENSE',   100, '21'),
+  ('5600','Advertising',         'EXPENSE',   100, '21'),
+  ('5700','Travel',              'EXPENSE',   100, '0'),
+  ('5800','Meals & Entertainment','EXPENSE',   80, '9'),
+  ('5900','Phone & Internet',    'EXPENSE',   100, '21'),
+  ('6000','Education',           'EXPENSE',   100, '21'),
+  ('6100','Insurance',           'EXPENSE',   100, 'EXEMPT'),
+  ('6200','Bank Charges',        'EXPENSE',   100, '21'),
+  ('6300','General Expenses',    'EXPENSE',   100, '21'),
+  ('6400','Personal',            'EXPENSE',     0, 'EXEMPT'),
+  ('6500','Tax Expense',         'EXPENSE',     0, 'EXEMPT');
+
+-- ─── Bookkeeping: journal entries ────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS journal_entries (
+  id                  TEXT PRIMARY KEY,
+  tx_id               TEXT NOT NULL,
+  date                TEXT NOT NULL,
+  description         TEXT,
+  debit_account       TEXT NOT NULL,
+  credit_account      TEXT NOT NULL,
+  amount_cents        INTEGER NOT NULL,
+  vat_amount_cents    INTEGER NOT NULL DEFAULT 0,
+  category            TEXT NOT NULL DEFAULT 'UNCATEGORIZED',
+  subcategory         TEXT,
+  is_business_expense INTEGER NOT NULL DEFAULT 0,
+  deductibility_pct   INTEGER NOT NULL DEFAULT 100,
+  review_required     INTEGER NOT NULL DEFAULT 0,
+  review_reason       TEXT,
+  reviewed_at         TEXT,
+  overridden_by       TEXT,
+  created_at          TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (tx_id) REFERENCES transactions(id) ON DELETE CASCADE
+);
+
+CREATE INDEX IF NOT EXISTS idx_journal_entries_tx_id
+  ON journal_entries (tx_id);
+
+CREATE INDEX IF NOT EXISTS idx_journal_entries_date
+  ON journal_entries (date DESC);
+
+CREATE INDEX IF NOT EXISTS idx_journal_entries_review
+  ON journal_entries (review_required, reviewed_at);
+
+-- ─── Bookkeeping: categorization corrections (feedback loop) ─────────────────
+
+CREATE TABLE IF NOT EXISTS categorization_corrections (
+  id              TEXT PRIMARY KEY,
+  counterparty    TEXT NOT NULL,
+  old_category    TEXT NOT NULL,
+  new_category    TEXT NOT NULL,
+  corrected_at    TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_corrections_counterparty
+  ON categorization_corrections (counterparty);
+
+-- ─── Bookkeeping: VAT periods ─────────────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS vat_periods (
+  id               TEXT PRIMARY KEY,
+  year             INTEGER NOT NULL,
+  quarter          INTEGER NOT NULL CHECK (quarter BETWEEN 1 AND 4),
+  period_start     TEXT NOT NULL,
+  period_end       TEXT NOT NULL,
+  due_date         TEXT NOT NULL,
+  vat_collected    REAL NOT NULL DEFAULT 0,
+  vat_paid         REAL NOT NULL DEFAULT 0,
+  vat_net_due      REAL NOT NULL DEFAULT 0,
+  status           TEXT NOT NULL DEFAULT 'OPEN',  -- OPEN | FILED | OVERDUE
+  filed_at         TEXT,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  UNIQUE (year, quarter)
+);

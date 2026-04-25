@@ -1,5 +1,6 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
 import { getDb } from '../memory/db.js';
+import { createExecutionPlan, confirmPlan, executePlan } from '../bunq/execute.js';
 
 // ─── Seed row schema ──────────────────────────────────────────────────────────
 // [id, amount, counterpartyName, description, category, isRecurring(0|1), daysAgo, hour]
@@ -83,74 +84,12 @@ const SEED: SeedRow[] = [
 ];
 
 import { v4 as uuidv4 } from 'uuid';
-import type { BunqClient } from '../bunq/client.js';
 
 export async function registerDemoRoute(
   fastify: FastifyInstance,
   triggerTick?: () => Promise<void>,
   getAID?: () => number,
-  client?: BunqClient,
 ): Promise<void> {
-  // ─── Top up Sandbox ───
-  fastify.post('/api/demo/topup', async (_req, reply) => {
-    if (!client) return reply.status(500).send({ error: 'BunqClient not available' });
-    
-    try {
-      const baseUrl = process.env['BUNQ_SANDBOX_URL'] ?? 'https://public-api.sandbox.bunq.com/v1';
-      const session = client.session;
-      
-      console.log('[demo] Attempting sandbox top-up via Sugar Daddy...');
-
-      // 1. Get Accounts
-      const accRes = await fetch(`${baseUrl}/user/${session.userId}/monetary-account`, {
-        headers: { 'X-Bunq-Client-Authentication': session.sessionToken }
-      });
-      const accData = await accRes.json();
-      const account = accData.Response?.[0];
-      const accountId = account?.MonetaryAccountBank?.id || account?.MonetaryAccountSavings?.id;
-
-      if (!accountId) throw new Error('No monetary account found for top-up');
-
-      // 2. Request from Sugar Daddy
-      const reqRes = await fetch(`${baseUrl}/user/${session.userId}/monetary-account/${accountId}/request-inquiry`, {
-        method: 'POST',
-        headers: {
-          'X-Bunq-Client-Authentication': session.sessionToken,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          amount_inquired: { value: '500.00', currency: 'EUR' },
-          counterparty_alias: {
-            type: 'EMAIL',
-            value: 'sugardaddy@bunq.com',
-            name: 'Sugar Daddy'
-          },
-          description: 'Demo Funding',
-          allow_bunqme: true
-        })
-      });
-
-      if (!reqRes.ok) {
-        const err = await reqRes.text();
-        throw new Error(`Sugar Daddy rejected: ${err}`);
-      }
-
-      console.log(`[demo] Sugar Daddy request sent for account ${accountId}`);
-      
-      // Force a tick to refresh the balance in the UI
-      if (triggerTick) {
-        setTimeout(() => {
-          void triggerTick!().catch(err => console.error('[demo] Top-up tick failed:', err));
-        }, 500);
-      }
-
-      return reply.send({ ok: true });
-    } catch (err: any) {
-      console.error('[demo] Top-up failed:', err.message);
-      return reply.status(500).send({ error: err.message });
-    }
-  });
-
   fastify.post('/api/demo/reset', async (_req: FastifyRequest, reply: FastifyReply) => {
     const db = getDb();
     const AID = getAID?.() ?? 1;
@@ -219,6 +158,46 @@ export async function registerDemoRoute(
       }, 100);
     }
     return reply.send({ ok: true });
+  });
+
+  // ─── Fund sandbox via sugardaddy@bunq.com ───
+  fastify.post('/api/demo/fund-sandbox', async (_req: FastifyRequest, reply: FastifyReply) => {
+    if (process.env['BUNQ_ENV'] === 'production') {
+      return reply.status(403).send({ error: 'Sandbox funding is not available in production' });
+    }
+
+    const AID = getAID?.() ?? 1;
+    const db  = getDb();
+
+    const sessionRow = db
+      .prepare(`SELECT user_id FROM sessions ORDER BY created_at DESC LIMIT 1`)
+      .get() as { user_id: number } | undefined;
+
+    if (!sessionRow) return reply.status(500).send({ error: 'No active session' });
+
+    console.log(`[demo] Requesting sandbox funds for account ${AID}`);
+
+    const plan = await createExecutionPlan(
+      [{
+        id:          uuidv4(),
+        type:        'SANDBOX_FUND',
+        description: 'Request €500 from bunq Sugar Daddy sandbox alias',
+        payload:     { accountId: AID, amount: '500' },
+      }],
+      'Requesting €500 from the bunq sandbox Sugar Daddy to fund your test account.',
+    );
+
+    // Button click is the explicit user confirmation — satisfy PLAN_BEFORE_ACT
+    await confirmPlan(plan.id);
+    await executePlan(plan.id);
+
+    if (triggerTick) {
+      setTimeout(() => {
+        void triggerTick!().catch(err => console.error('[demo] Post-fund tick failed:', err));
+      }, 1500);
+    }
+
+    return reply.send({ ok: true, planId: plan.id, amount: '500', accountId: AID });
   });
 
   // ─── Simulate Fraud ───

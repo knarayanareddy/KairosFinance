@@ -2,7 +2,8 @@ export type ExecutionStepType =
   | 'PAYMENT'
   | 'DRAFT_PAYMENT'
   | 'SAVINGS_TRANSFER'
-  | 'CANCEL_DRAFT';
+  | 'CANCEL_DRAFT'
+  | 'SANDBOX_FUND';
 
 export type ExecutionPlanStatus =
   | 'PENDING'

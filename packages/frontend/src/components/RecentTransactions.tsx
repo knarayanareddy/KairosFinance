@@ -1,6 +1,15 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { TransactionRow } from '@bunqsy/shared';
 
+function taxCategoryLabel(cat: string): string {
+  // Strip prefix and make human-readable: "BIZ_SOFTWARE" → "Software"
+  return cat
+    .replace(/^(BIZ_|PERSONAL_|INCOME_|TRANSFER_|TAX_)/, '')
+    .replace(/_/g, ' ')
+    .toLowerCase()
+    .replace(/\b\w/g, c => c.toUpperCase());
+}
+
 const CATEGORY_ICONS: Record<string, string> = {
   groceries:     '🛒',
   dining:        '🍽️',
@@ -99,10 +108,18 @@ export function RecentTransactions({ refreshKey = 0 }: Props): React.JSX.Element
                   {icon}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5, flexWrap: 'nowrap' }}>
                     <span style={styles.merchant}>{label(tx)}</span>
                     {manual && (
                       <span style={styles.manualBadge}>receipt</span>
+                    )}
+                    {tx.je_category && tx.je_category !== 'UNCATEGORIZED' && (
+                      <span style={styles.taxBadge} title={tx.je_category}>
+                        ✓ {taxCategoryLabel(tx.je_category)}
+                      </span>
+                    )}
+                    {tx.journal_entry_id && (!tx.je_category || tx.je_category === 'UNCATEGORIZED') && (
+                      <span style={styles.pendingBadge}>⏳ review</span>
                     )}
                   </div>
                   <div style={styles.meta}>
@@ -201,6 +218,30 @@ const styles: Record<string, React.CSSProperties> = {
     color: '#818cf8',
     letterSpacing: '0.08em',
     textTransform: 'uppercase' as const,
+    flexShrink: 0,
+  },
+  taxBadge: {
+    fontSize: '8px',
+    fontWeight: 700,
+    padding: '2px 6px',
+    borderRadius: '4px',
+    background: 'rgba(0,191,255,0.10)',
+    color: '#00bfff',
+    letterSpacing: '0.04em',
+    flexShrink: 0,
+    whiteSpace: 'nowrap' as const,
+    maxWidth: '90px',
+    overflow: 'hidden' as const,
+    textOverflow: 'ellipsis' as const,
+  },
+  pendingBadge: {
+    fontSize: '8px',
+    fontWeight: 700,
+    padding: '2px 6px',
+    borderRadius: '4px',
+    background: 'rgba(255,106,0,0.10)',
+    color: '#ff6a00',
+    letterSpacing: '0.04em',
     flexShrink: 0,
   },
   meta: {

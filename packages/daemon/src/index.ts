@@ -18,12 +18,14 @@ import { registerReceiptRoute } from './routes/receipt.js';
 import { registerDreamRoutes } from './routes/dream.js';
 import { registerForecastRoute } from './routes/forecast.js';
 import { registerDemoRoute } from './routes/demo.js';
+import { registerBookkeepingRoutes } from './routes/bookkeeping.js';
 import { scheduleDreamMode } from './dream/scheduler.js';
 import { triggerDream } from './dream/trigger.js';
 import type { SessionRow, BUNQSYScore, InterventionPayload, OracleVerdict, ScoreDeltaExplainPayload } from '@bunqsy/shared';
 import type { BunqSession } from './bunq/auth.js';
 import type { RecallSnapshot } from './heartbeat/recall.js';
 import { setAccountSummaries, setLastScore } from './state.js';
+import { registerNotificationFilter } from './bunq/execute.js';
 
 // ─── Session persistence helpers ─────────────────────────────────────────────
 
@@ -99,6 +101,8 @@ async function boot(): Promise<void> {
   await fastify.register(multipart, { limits: { fileSize: 10 * 1024 * 1024, files: 1 } });
 
   let activeAID = 1;
+  let webhookRegistered = false;
+  const webhookPublicUrl = process.env['WEBHOOK_PUBLIC_URL'];
 
   const client  = new BunqClient(session);
   const oracle  = createOracle(db, wsEmit);
@@ -113,21 +117,38 @@ async function boot(): Promise<void> {
     onTickRecord:   (snapshot: RecallSnapshot)     => {
       activeAID = snapshot.primaryAccountId;
       setAccountSummaries(snapshot.accountSummaries ?? []);
+      // Register webhook once we know the real account ID from the first tick
+      if (webhookPublicUrl && !webhookRegistered) {
+        webhookRegistered = true;
+        const callbackUrl = `${webhookPublicUrl.replace(/\/$/, '')}/api/webhook`;
+        registerNotificationFilter(session.userId, activeAID, callbackUrl)
+          .catch((err: Error) => console.warn('[bunqsy] Webhook registration failed (non-fatal):', err.message));
+      }
     },
+    onBookkeepingUpdate: (msg: import('@bunqsy/shared').WSMessage) => { wsEmit(msg); },
     onError:        (err: Error) => { console.error('[heartbeat]', err.message); },
   };
 
   await registerWsRoute(fastify);
-  await registerApiRoutes(fastify);
+  await registerApiRoutes(fastify, () => runTick(heartbeatDeps));
   await registerVoiceRoute(fastify, () => runTick(heartbeatDeps), () => activeAID);
   await registerReceiptRoute(fastify);
   await registerDreamRoutes(fastify);
   await registerForecastRoute(fastify);
-  await registerDemoRoute(fastify, () => runTick(heartbeatDeps), () => activeAID, client);
+  await registerDemoRoute(fastify, () => runTick(heartbeatDeps), () => activeAID);
+  await registerBookkeepingRoutes(fastify, () => {
+    // Try to get the primary account IBAN from the session
+    const row = db.prepare(`SELECT counterparty_iban FROM transactions WHERE counterparty_iban IS NOT NULL LIMIT 1`).get() as { counterparty_iban?: string } | undefined;
+    return row?.counterparty_iban ?? 'NL00BUNQ0000000000';
+  });
 
   // ── Listen ─────────────────────────────────────────────────────────────────
   await fastify.listen({ port, host: '0.0.0.0' });
   console.log(`[bunqsy] Server listening on http://0.0.0.0:${port}`);
+
+  if (!webhookPublicUrl) {
+    console.log('[bunqsy] WEBHOOK_PUBLIC_URL not set — webhook push disabled, polling only');
+  }
 
   // ── Heartbeat ──────────────────────────────────────────────────────────────
   const intervalMs = parseInt(process.env['HEARTBEAT_INTERVAL_MS'] ?? '60000', 10);

@@ -1,5 +1,6 @@
 import type { OracleVerdict, OracleVote } from './oracle.js';
 import type { ExecutionPlan } from './plan.js';
+import type { ReviewQueueUpdatePayload, BooksUpToDatePayload, VatReminderPayload } from './bookkeeping.js';
 
 export interface BUNQSYScoreComponents {
   balance: number;    // 0–100 contribution
@@ -55,5 +56,8 @@ export type WSMessage =
   | { type: 'intervention';         payload: InterventionPayload }
   | { type: 'plan_update';          payload: ExecutionPlan }
   | { type: 'dream_complete';       payload: DreamBriefingPayload }
+  | { type: 'review_queue_update';  payload: ReviewQueueUpdatePayload }
+  | { type: 'books_up_to_date';     payload: BooksUpToDatePayload }
+  | { type: 'vat_reminder';         payload: VatReminderPayload }
   | { type: 'tick';                 payload: { tickId: string; timestamp: string } }
   | { type: 'error';                payload: { message: string } };

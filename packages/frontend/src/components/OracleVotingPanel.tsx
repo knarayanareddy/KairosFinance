@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { SimVote, SimVerdict } from '../hooks/useLocalSim.js';
 
 interface Props {
@@ -17,6 +17,7 @@ const statusStyles: Record<SimVote['status'], { color: string; bg: string; label
 };
 
 export function OracleVotingPanel({ votes, verdict, running, onTriggerFraud }: Props): React.JSX.Element {
+  const [fundState, setFundState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
   const isIdle = votes.every(v => v.status === 'PENDING');
 
   return (
@@ -39,29 +40,37 @@ export function OracleVotingPanel({ votes, verdict, running, onTriggerFraud }: P
         </div>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
+            disabled={fundState === 'loading' || fundState === 'done'}
             onClick={async () => {
+              setFundState('loading');
               try {
-                const res = await fetch('/api/demo/topup', { method: 'POST' });
-                if (res.ok) alert('💰 Sandbox funded with €500! Syncing...');
-                else alert('❌ Funding failed. Check daemon logs.');
-              } catch (e) {
-                alert('❌ Error connecting to top-up API.');
+                const res = await fetch('/api/demo/fund-sandbox', { method: 'POST' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                setFundState('done');
+                setTimeout(() => setFundState('idle'), 5000);
+              } catch {
+                setFundState('error');
+                setTimeout(() => setFundState('idle'), 3000);
               }
             }}
             style={{
-              background: 'rgba(0,255,149,0.10)',
+              background: fundState === 'done' ? 'rgba(0,255,149,0.10)' : 'rgba(0,255,149,0.10)',
               border: '1px solid rgba(0,255,149,0.30)',
               borderRadius: '100px',
               padding: '8px 16px',
-              color: '#00ff95',
+              color: fundState === 'error' ? '#ff6a00' : '#00ff95',
               fontSize: '12px',
               fontWeight: 600,
-              cursor: 'pointer',
+              cursor: fundState === 'loading' || fundState === 'done' ? 'not-allowed' : 'pointer',
+              opacity: fundState === 'loading' ? 0.6 : 1,
               transition: 'all 0.2s',
               fontFamily: "'Montserrat', sans-serif",
             }}
           >
-            💰 Fund Sandbox
+            {fundState === 'loading' ? '⏳ Requesting…'
+              : fundState === 'done'  ? '✓ €500 Funded'
+              : fundState === 'error' ? '⚠ Failed'
+              : '💰 Fund Sandbox'}
           </button>
           <button
             onClick={onTriggerFraud}

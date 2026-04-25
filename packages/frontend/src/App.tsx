@@ -12,6 +12,11 @@ import { ForecastChart } from './components/ForecastChart.js';
 import { FraudBlock } from './components/FraudBlock.js';
 import { DNACard } from './components/DNACard.js';
 import { RecentTransactions } from './components/RecentTransactions.js';
+import { ReviewQueue } from './components/bookkeeping/ReviewQueue.js';
+import { ProfitAndLoss } from './components/bookkeeping/ProfitAndLoss.js';
+import { VatTracker } from './components/bookkeeping/VatTracker.js';
+import { ExportModal } from './components/bookkeeping/ExportModal.js';
+import { BookkeepingStatus } from './components/bookkeeping/BookkeepingStatus.js';
 
 // ── Superscript-decimal currency (matches authentic bunq visual language) ─────
 function BunqBalance({
@@ -78,6 +83,9 @@ export function App(): React.JSX.Element {
   const [showDelta, setShowDelta] = useState(false);
   const [dismissedInterventionId, setDismissedInterventionId] = useState<string | null>(null);
   const [txRefreshKey, setTxRefreshKey] = useState(0);
+  const [fundingState, setFundingState] = useState<'idle' | 'loading' | 'done' | 'error'>('idle');
+  const [activeTab, setActiveTab]       = useState<'dashboard' | 'bookkeeping'>('dashboard');
+  const [exportModalOpen, setExportModalOpen] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -112,6 +120,21 @@ export function App(): React.JSX.Element {
     }
     return undefined;
   }, [ws.scoreDelta]);
+
+  // Open dream modal when the real WS dream_complete event arrives (voice or scheduled)
+  useEffect(() => {
+    if (!ws.dreamBriefing) return;
+    setDreamBriefing({
+      sessionId:   ws.dreamBriefing.sessionId,
+      briefingText: ws.dreamBriefing.briefingText,
+      dnaCard:     ws.dreamBriefing.dnaCard,
+      suggestions: ws.dreamBriefing.suggestions,
+      completedAt: new Date().toISOString(),
+    });
+    setDreamRunning(false);
+    setDreamModalOpen(true);
+    void speakText('Your dream mode analysis is complete. Opening your financial briefing now.');
+  }, [ws.dreamBriefing]);
 
   async function handleDemoReset(): Promise<void> {
     await fetch('/api/demo/reset', { method: 'POST' });
@@ -234,8 +257,50 @@ export function App(): React.JSX.Element {
         </div>
       </header>
 
+      {/* ── Tab bar ────────────────────────────────────────────────────────── */}
+      <div style={{
+        background: 'rgba(9,9,9,0.80)', backdropFilter: 'blur(16px)',
+        borderBottom: '1px solid rgba(255,255,255,0.05)', zIndex: 99, position: 'sticky', top: '72px',
+      }}>
+        <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '0 28px', display: 'flex', gap: '0' }}>
+          {(['dashboard', 'bookkeeping'] as const).map(tab => (
+            <button
+              key={tab}
+              onClick={() => setActiveTab(tab)}
+              style={{
+                background: 'none', border: 'none',
+                borderBottom: activeTab === tab ? '2px solid #00bfff' : '2px solid transparent',
+                padding: '14px 20px', cursor: 'pointer', fontFamily: "'Montserrat', sans-serif",
+                fontSize: '11px', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase',
+                color: activeTab === tab ? '#00bfff' : 'rgba(255,255,255,0.35)',
+                transition: 'all 0.2s', marginBottom: '-1px',
+              }}
+            >
+              {tab === 'dashboard' ? '📊 Dashboard' : '📒 Tax & Bookkeeper'}
+            </button>
+          ))}
+        </div>
+      </div>
+
       {/* ── Main layout ────────────────────────────────────────────────────── */}
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '28px 24px', position: 'relative', zIndex: 1 }}>
+
+      {/* ── Bookkeeping Tab ─────────────────────────────────────────────────── */}
+      {activeTab === 'bookkeeping' && (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+          <BookkeepingStatus onExportClick={() => setExportModalOpen(true)} />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '18px', alignItems: 'start' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+              <ProfitAndLoss />
+              <VatTracker />
+            </div>
+            <ReviewQueue />
+          </div>
+          {exportModalOpen && <ExportModal onClose={() => setExportModalOpen(false)} />}
+        </div>
+      )}
+
+      {activeTab === 'dashboard' && (<>
 
         {/* Score delta explainer toast */}
         {showDelta && ws.scoreDelta && (
@@ -417,6 +482,9 @@ export function App(): React.JSX.Element {
                   id: ws.intervention.id,
                   planId: ws.intervention.executionPlanId,
                 } : null}
+                onActionTriggered={(action) => {
+                  if (action === 'trigger_dream') setDreamRunning(true);
+                }}
               />
             </div>
 
@@ -636,6 +704,7 @@ export function App(): React.JSX.Element {
 
           </div>
         </div>
+      </>)}
       </main>
 
       {/* ── Footer ─────────────────────────────────────────────────────────── */}
@@ -659,6 +728,28 @@ export function App(): React.JSX.Element {
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <button className="demo-reset-btn" onClick={() => { void handleDemoReset(); }}>
             ⟳ reset demo
+          </button>
+          <button
+            className="demo-reset-btn"
+            disabled={fundingState === 'loading' || fundingState === 'done'}
+            onClick={async () => {
+              setFundingState('loading');
+              try {
+                const res = await fetch('/api/demo/fund-sandbox', { method: 'POST' });
+                if (!res.ok) throw new Error(`HTTP ${res.status}`);
+                setFundingState('done');
+                setTxRefreshKey(k => k + 1);
+                setTimeout(() => setFundingState('idle'), 6000);
+              } catch {
+                setFundingState('error');
+                setTimeout(() => setFundingState('idle'), 4000);
+              }
+            }}
+          >
+            {fundingState === 'loading' ? '⏳ requesting…'
+              : fundingState === 'done'  ? '✓ €500 funded'
+              : fundingState === 'error' ? '⚠ failed'
+              : '💶 fund sandbox'}
           </button>
         </div>
       </footer>

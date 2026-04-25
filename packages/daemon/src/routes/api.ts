@@ -7,7 +7,10 @@ import { offerPatternPromotion } from '../intervention/pattern-promotion.js';
 import { getAccountSummaries } from '../state.js';
 import type { ScoreLogRow, OracleVote, InterventionRow, TransactionRow } from '@bunqsy/shared';
 
-export async function registerApiRoutes(fastify: FastifyInstance): Promise<void> {
+export async function registerApiRoutes(
+  fastify: FastifyInstance,
+  triggerTick?: () => Promise<void>,
+): Promise<void> {
 
   // ── GET /api/score — latest BUNQSY score ────────────────────────────────────
   fastify.get('/api/score', async (_req: FastifyRequest, reply: FastifyReply) => {
@@ -135,7 +138,10 @@ export async function registerApiRoutes(fastify: FastifyInstance): Promise<void>
       const limit = Math.min(parseInt((req.query as { limit?: string }).limit ?? '30', 10), 100);
       const rows = db
         .prepare(
-          `SELECT * FROM transactions ORDER BY created_at DESC LIMIT ?`,
+          `SELECT t.*, j.category AS je_category
+           FROM transactions t
+           LEFT JOIN journal_entries j ON j.tx_id = t.id
+           ORDER BY t.created_at DESC LIMIT ?`,
         )
         .all(limit) as TransactionRow[];
       return reply.send(rows);
@@ -153,9 +159,25 @@ export async function registerApiRoutes(fastify: FastifyInstance): Promise<void>
       return reply.status(403).send({ error: 'Forbidden — IP not in bunq CIDR range' });
     }
 
-    // Signature validation is done by validateWebhookRequest in webhook.ts;
-    // full wiring happens in Phase 7 when real-time events drive recall().
-    // For now, acknowledge receipt so bunq does not retry.
+    // Parse the bunq notification payload
+    // Shape: { NotificationUrl: { category, event_type, object } }
+    const body = req.body as { NotificationUrl?: { category?: string; event_type?: string } } | undefined;
+    const category  = body?.NotificationUrl?.category ?? 'UNKNOWN';
+    const eventType = body?.NotificationUrl?.event_type ?? 'UNKNOWN';
+
+    console.log(`[webhook] Received: category=${category} event=${eventType}`);
+
+    // Trigger an immediate heartbeat tick for payment-relevant events
+    const TICK_CATEGORIES = new Set(['PAYMENT', 'MUTATION', 'REQUEST', 'SCHEDULE_RESULT']);
+    if (TICK_CATEGORIES.has(category) && triggerTick) {
+      // Slight delay so bunq has committed the transaction before we fetch
+      setTimeout(() => {
+        void triggerTick().catch((err: Error) =>
+          console.error('[webhook] Triggered tick failed:', err.message),
+        );
+      }, 800);
+    }
+
     return reply.status(200).send({ ok: true });
   });
 }

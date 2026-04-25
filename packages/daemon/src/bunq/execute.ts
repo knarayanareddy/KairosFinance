@@ -152,6 +152,52 @@ export async function executePlan(planId: string): Promise<void> {
   ).run(planId);
 }
 
+/**
+ * Registers bunq notification filters (webhooks) for PAYMENT and MUTATION events.
+ * Only runs when WEBHOOK_PUBLIC_URL is set. Safe to call on every boot — bunq
+ * overwrites existing filters for the same account.
+ */
+export async function registerNotificationFilter(
+  userId: number,
+  accountId: number,
+  callbackUrl: string,
+): Promise<void> {
+  const db = getDb();
+  const sessionRow = db
+    .prepare(`SELECT session_token, private_key_pem FROM sessions ORDER BY created_at DESC LIMIT 1`)
+    .get() as { session_token: string; private_key_pem: string } | undefined;
+
+  if (!sessionRow) throw new Error('No active session for webhook registration');
+
+  const baseUrl = getBunqBaseUrl();
+  const path    = `/user/${userId}/monetary-account/${accountId}/notification-filter-url`;
+  const body    = JSON.stringify({
+    notification_filters: [
+      { category: 'PAYMENT',  notification_target: callbackUrl },
+      { category: 'MUTATION', notification_target: callbackUrl },
+    ],
+  });
+  const signature = signRequestBody(body, sessionRow.private_key_pem);
+
+  const res = await fetch(`${baseUrl}${path}`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'User-Agent': 'BunqsyFinance/1.0',
+      'X-Bunq-Client-Authentication': sessionRow.session_token,
+      'X-Bunq-Client-Signature': signature,
+    },
+    body,
+  });
+
+  if (!res.ok) {
+    const text = await res.text();
+    throw new Error(`Notification filter registration failed: ${res.status} ${text}`);
+  }
+
+  console.log(`[bunqsy] Webhook registered → ${callbackUrl} (PAYMENT + MUTATION)`);
+}
+
 export async function cancelPlan(planId: string): Promise<void> {
   const db = getDb();
   const row = db
@@ -224,6 +270,25 @@ function buildStepRequest(step: ExecutionStep, userId: number): BunqRequest {
         method: 'DELETE',
         path: `/user/${userId}/draft-payment/${payload['draftPaymentId']}`,
         body: {},
+      };
+
+    case 'SANDBOX_FUND':
+      return {
+        method: 'POST',
+        path: `/user/${userId}/monetary-account/${payload['accountId']}/request-inquiry`,
+        body: {
+          amount_inquired: {
+            value:    String(payload['amount'] ?? '500'),
+            currency: 'EUR',
+          },
+          counterparty_alias: {
+            type:  'EMAIL',
+            value: 'sugardaddy@bunq.com',
+            name:  'Sugar Daddy',
+          },
+          description:  payload['description'] ?? "Fund sandbox account",
+          allow_bunqme: false,
+        },
       };
 
     default: {
