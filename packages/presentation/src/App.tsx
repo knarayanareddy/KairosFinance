@@ -10,8 +10,14 @@ const BUNQ_YELLOW = '#f5c842';
 
 // ─── Hooks ────────────────────────────────────────────────────────────────────
 function useAnimateIn(active: boolean, delay = 0) {
-  const [visible, setVisible] = useState(false);
+  // If already active on first mount, show immediately (no blank flash)
+  const [visible, setVisible] = useState(active);
+  const mounted = useRef(false);
   useEffect(() => {
+    if (!mounted.current) {
+      mounted.current = true;
+      if (active) { setVisible(true); return; }
+    }
     if (active) {
       const t = setTimeout(() => setVisible(true), delay);
       return () => clearTimeout(t);
