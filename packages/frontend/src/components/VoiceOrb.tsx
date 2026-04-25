@@ -79,9 +79,9 @@ export async function speakText(text: string): Promise<void> {
 
 // ─── Silence detector ─────────────────────────────────────────────────────────
 
-const SILENCE_RMS_THRESHOLD = 8;    // below this = silent (0–128 scale)
-const SILENCE_HOLD_MS       = 1600; // stop after this much silence
-const MIN_RECORD_MS         = 600;  // never stop before this
+const SILENCE_RMS_THRESHOLD = 12;   // below this = silent (0–128 scale)
+const SILENCE_HOLD_MS       = 2400; // stop after this much continuous silence
+const MIN_RECORD_MS         = 1500; // never stop before this — avoids clipping short phrases
 
 function createSilenceDetector(
   stream: MediaStream,
@@ -161,7 +161,7 @@ export function VoiceOrb({ onPlanConfirmed, activeIntervention, onActionTriggere
   // ── Core recording logic ──────────────────────────────────────────────────
 
   const processAudio = useCallback(async (blob: Blob, mimeType: string): Promise<void> => {
-    if (blob.size < 800) {
+    if (blob.size < 4000) {
       if (convActiveRef.current) {
         setOrbState('recording');
         void startRecordingInner();
