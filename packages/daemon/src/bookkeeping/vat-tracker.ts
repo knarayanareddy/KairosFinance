@@ -94,7 +94,8 @@ export function computeVatPeriod(
 
   const vatCollected = collectedRow.total / 100;
   const vatPaid      = paidRow.total / 100;
-  const vatNetDue    = Math.max(0, vatCollected - vatPaid);
+  // Negative = refund owed by tax authority (input VAT exceeds output VAT)
+  const vatNetDue    = vatCollected - vatPaid;
 
   const now       = new Date().toISOString().slice(0, 10);
   const isOverdue = now > dueDate;

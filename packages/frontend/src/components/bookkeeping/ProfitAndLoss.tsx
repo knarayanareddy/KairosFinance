@@ -63,6 +63,7 @@ export function ProfitAndLoss(): React.JSX.Element {
   }
 
   const top8Expenses = [...pl.expenseLines]
+    .filter(l => l.amountEur > 0)
     .sort((a, b) => b.amountEur - a.amountEur)
     .slice(0, 8)
     .map(l => ({ name: categoryLabel(l.category), amount: l.amountEur }));
@@ -105,11 +106,12 @@ export function ProfitAndLoss(): React.JSX.Element {
           borderRadius: '12px', padding: '12px 14px',
         }}>
           <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.35)', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '4px' }}>
-            Non-deductible
+            Personal spend
           </div>
           <div style={{ fontSize: '16px', fontWeight: 700, color: 'rgba(255,255,255,0.55)' }}>
             €{pl.nonDeductibleExpenses.toFixed(2)}
           </div>
+          <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.22)', marginTop: 2 }}>not tax-deductible</div>
         </div>
       </div>
 

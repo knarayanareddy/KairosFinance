@@ -105,18 +105,36 @@ export function VatTracker(): React.JSX.Element {
                 {/* VAT amounts */}
                 <div style={{ display: 'flex', gap: '10px' }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' }}>Collected</div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#00ff95' }}>€{p.vatCollected.toFixed(2)}</div>
+                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' }}>
+                      Collected (output)
+                    </div>
+                    <div style={{ fontSize: '14px', fontWeight: 700, color: '#00ff95' }}>
+                      €{p.vatCollected.toFixed(2)}
+                    </div>
+                    {p.vatCollected === 0 && (
+                      <div style={{ fontSize: '8px', color: 'rgba(255,255,255,0.22)', marginTop: 2 }}>salary exempt</div>
+                    )}
                   </div>
                   <div style={{ flex: 1 }}>
                     <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' }}>Paid (input)</div>
                     <div style={{ fontSize: '14px', fontWeight: 700, color: '#ff6a00' }}>€{p.vatPaid.toFixed(2)}</div>
                   </div>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' }}>Net Due</div>
-                    <div style={{ fontSize: '14px', fontWeight: 700, color: p.vatNetDue > 0 ? '#ff6a00' : '#00ff95' }}>
-                      €{p.vatNetDue.toFixed(2)}
-                    </div>
+                    {p.vatNetDue < 0 ? (
+                      <>
+                        <div style={{ fontSize: '9px', color: 'rgba(0,255,149,0.7)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' }}>Refund Due</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: '#00ff95' }}>
+                          €{Math.abs(p.vatNetDue).toFixed(2)}
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div style={{ fontSize: '9px', color: 'rgba(255,255,255,0.3)', letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '3px' }}>Net Due</div>
+                        <div style={{ fontSize: '14px', fontWeight: 700, color: p.vatNetDue > 0 ? '#ff6a00' : 'rgba(255,255,255,0.3)' }}>
+                          €{p.vatNetDue.toFixed(2)}
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
