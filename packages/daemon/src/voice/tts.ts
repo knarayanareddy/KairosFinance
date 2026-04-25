@@ -1,6 +1,5 @@
-// ElevenLabs TTS — uses eleven_multilingual_v2 which is available on all plans.
-// eleven_turbo_v2_5 requires a higher-tier subscription and returns 400 on free/starter.
-const MODEL_ID  = process.env['ELEVENLABS_MODEL_ID'] ?? 'eleven_multilingual_v2';
+// ElevenLabs TTS — eleven_turbo_v2_5 requires Creator plan or above (100k+ credits).
+const MODEL_ID  = process.env['ELEVENLABS_MODEL_ID'] ?? 'eleven_turbo_v2_5';
 const MAX_CHARS = 2000; // ElevenLabs hard limit varies by plan; stay well under it
 
 export async function textToSpeech(text: string): Promise<Buffer> {
