@@ -1,32 +1,51 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 
-type OrbState = 'idle' | 'recording' | 'processing' | 'plan_ready' | 'error';
+type OrbState = 'idle' | 'recording' | 'processing' | 'plan_ready' | 'response_ready' | 'error';
 
 interface VoicePlan {
+  kind: 'plan';
   planId: string;
   narratedText: string;
   steps: Array<{ id: string; type: string; description: string }>;
   transcript: string;
 }
 
-interface Props {
-  onPlanConfirmed?: (planId: string) => void;
+interface VoiceResponse {
+  kind: 'response' | 'confirmed' | 'denied';
+  action?: string;
+  spokenResponse: string;
+  transcript: string;
 }
 
-export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
+type VoiceResult = VoicePlan | VoiceResponse;
+
+interface ActiveIntervention {
+  id: string;
+  planId?: string | null;
+}
+
+interface Props {
+  onPlanConfirmed?: (planId: string) => void;
+  activeIntervention?: ActiveIntervention | null;
+}
+
+export function VoiceOrb({ onPlanConfirmed, activeIntervention }: Props): React.JSX.Element {
   const [orbState, setOrbState] = useState<OrbState>('idle');
   const [plan, setPlan] = useState<VoicePlan | null>(null);
+  const [responseMsg, setResponseMsg] = useState('');
   const [errorMsg, setErrorMsg] = useState('');
   const [confirmingPlan, setConfirmingPlan] = useState(false);
+  const [pendingPlanId, setPendingPlanId] = useState<string | null>(null);
 
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<BlobPart[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const responseDismissTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       streamRef.current?.getTracks().forEach(t => t.stop());
+      if (responseDismissTimer.current) clearTimeout(responseDismissTimer.current);
     };
   }, []);
 
@@ -49,7 +68,7 @@ export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
         if (e.data.size > 0) chunksRef.current.push(e.data);
       };
 
-      recorder.start(100); // collect chunks every 100ms
+      recorder.start(100);
       setOrbState('recording');
     } catch {
       setErrorMsg('Microphone access denied');
@@ -82,6 +101,11 @@ export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
         const ext = mimeType.includes('webm') ? '.webm' : '.mp4';
         formData.append('audio', blob, `voice${ext}`);
 
+        // Pass context so the backend can route confirm/deny to the right plan/intervention
+        if (pendingPlanId) formData.append('pendingPlanId', pendingPlanId);
+        if (activeIntervention?.id) formData.append('activeInterventionId', activeIntervention.id);
+        if (activeIntervention?.planId) formData.append('activeInterventionPlanId', activeIntervention.planId);
+
         const res = await fetch('/api/voice', { method: 'POST', body: formData });
         const data = await res.json() as unknown;
 
@@ -90,10 +114,25 @@ export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
           throw new Error(err);
         }
 
-        const result = data as VoicePlan;
-        setPlan(result);
-        setOrbState('plan_ready');
-        void speakText(result.narratedText);
+        const result = data as VoiceResult;
+
+        if (result.kind === 'plan') {
+          setPlan(result);
+          setPendingPlanId(result.planId);
+          setOrbState('plan_ready');
+          void speakText(result.narratedText);
+        } else {
+          if (result.kind === 'confirmed' || result.kind === 'denied') {
+            setPendingPlanId(null);
+          }
+          setResponseMsg(result.spokenResponse);
+          setOrbState('response_ready');
+          void speakText(result.spokenResponse);
+          responseDismissTimer.current = setTimeout(() => {
+            setResponseMsg('');
+            setOrbState('idle');
+          }, 5000);
+        }
       } catch (err) {
         setErrorMsg(err instanceof Error ? err.message : 'Voice command failed');
         setOrbState('error');
@@ -102,18 +141,14 @@ export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
     };
 
     recorder.stop();
-  }, []);
+  }, [pendingPlanId, activeIntervention]);
 
   const handlePointerDown = useCallback(() => {
-    if (orbState === 'idle') {
-      void startRecording();
-    }
+    if (orbState === 'idle') void startRecording();
   }, [orbState, startRecording]);
 
   const handlePointerUp = useCallback(() => {
-    if (orbState === 'recording') {
-      stopRecording();
-    }
+    if (orbState === 'recording') stopRecording();
   }, [orbState, stopRecording]);
 
   async function handleConfirm(): Promise<void> {
@@ -124,12 +159,14 @@ export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       onPlanConfirmed?.(plan.planId);
       setPlan(null);
+      setPendingPlanId(null);
       setOrbState('idle');
     } catch (err) {
       setErrorMsg(err instanceof Error ? err.message : 'Confirm failed');
       setOrbState('error');
       setTimeout(() => {
         setPlan(null);
+        setPendingPlanId(null);
         setOrbState('idle');
       }, 2500);
     } finally {
@@ -139,12 +176,18 @@ export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
 
   function handleCancel(): void {
     setPlan(null);
+    setPendingPlanId(null);
+    setOrbState('idle');
+  }
+
+  function handleDismissResponse(): void {
+    if (responseDismissTimer.current) clearTimeout(responseDismissTimer.current);
+    setResponseMsg('');
     setOrbState('idle');
   }
 
   return (
     <div style={styles.wrapper}>
-      {/* Plan card slides in above the orb */}
       {orbState === 'plan_ready' && plan && (
         <PlanCard
           plan={plan}
@@ -154,12 +197,20 @@ export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
         />
       )}
 
-      {/* Error message */}
+      {orbState === 'response_ready' && responseMsg && (
+        <ResponseCard text={responseMsg} onDismiss={handleDismissResponse} />
+      )}
+
       {orbState === 'error' && (
         <div style={styles.errorMsg}>{errorMsg}</div>
       )}
 
-      {/* The orb itself */}
+      {activeIntervention && orbState === 'idle' && (
+        <div style={styles.interventionHint}>
+          Alert active — say "deny" to block or "authorize" to allow
+        </div>
+      )}
+
       <div
         style={orbStyle(orbState)}
         onPointerDown={handlePointerDown}
@@ -171,14 +222,14 @@ export function VoiceOrb({ onPlanConfirmed }: Props): React.JSX.Element {
         <OrbInner state={orbState} />
       </div>
 
-      <span style={styles.hint}>{hintText(orbState)}</span>
+      <span style={styles.hint}>{hintText(orbState, !!pendingPlanId)}</span>
     </div>
   );
 }
 
 // ─── ElevenLabs TTS playback ──────────────────────────────────────────────────
 
-async function speakText(text: string): Promise<void> {
+export async function speakText(text: string): Promise<void> {
   try {
     const res = await fetch('/api/voice/speak', {
       method: 'POST',
@@ -209,16 +260,10 @@ function OrbInner({ state }: { state: OrbState }): React.JSX.Element {
       </div>
     );
   }
-  if (state === 'processing') {
-    return <div style={innerStyles.spinner} />;
-  }
-  if (state === 'plan_ready') {
-    return <div style={innerStyles.checkmark}>✓</div>;
-  }
-  if (state === 'error') {
-    return <div style={innerStyles.errorIcon}>✕</div>;
-  }
-  // idle
+  if (state === 'processing') return <div style={innerStyles.spinner} />;
+  if (state === 'plan_ready') return <div style={innerStyles.checkmark}>✓</div>;
+  if (state === 'response_ready') return <div style={innerStyles.checkmark}>✓</div>;
+  if (state === 'error') return <div style={innerStyles.errorIcon}>✕</div>;
   return <div style={innerStyles.micIcon}>🎙</div>;
 }
 
@@ -265,6 +310,10 @@ function PlanCard({
         </div>
       )}
 
+      <div style={cardStyles.hint}>
+        Say <strong>"yes"</strong> to confirm or <strong>"no"</strong> to cancel
+      </div>
+
       <div style={cardStyles.actions}>
         <button style={cardStyles.cancelBtn} onClick={onCancel} disabled={confirming}>
           Cancel
@@ -287,15 +336,32 @@ function PlanCard({
   );
 }
 
+// ─── Response card (system commands, confirm/deny feedback) ───────────────────
+
+function ResponseCard({ text, onDismiss }: { text: string; onDismiss: () => void }): React.JSX.Element {
+  return (
+    <div className="glass" style={cardStyles.card}>
+      <div style={cardStyles.header}>
+        <span style={cardStyles.title}>Voice Response</span>
+      </div>
+      <p style={cardStyles.narration}>{text}</p>
+      <div style={cardStyles.actions}>
+        <button style={cardStyles.cancelBtn} onClick={onDismiss}>Dismiss</button>
+      </div>
+    </div>
+  );
+}
+
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function hintText(state: OrbState): string {
+function hintText(state: OrbState, hasPendingPlan: boolean): string {
   switch (state) {
-    case 'idle':       return 'Hold to speak';
-    case 'recording':  return 'Release to send';
-    case 'processing': return 'Processing…';
-    case 'plan_ready': return 'Plan ready — confirm above';
-    case 'error':      return '';
+    case 'idle':           return hasPendingPlan ? 'Say "yes" or "no"' : 'Hold to speak';
+    case 'recording':      return 'Release to send';
+    case 'processing':     return 'Processing…';
+    case 'plan_ready':     return 'Say "yes" to confirm';
+    case 'response_ready': return 'Done';
+    case 'error':          return '';
   }
 }
 
@@ -345,6 +411,13 @@ function orbStyle(state: OrbState): React.CSSProperties {
         boxShadow: '0 0 24px rgba(74,222,128,0.5)',
         transform: 'scale(0.9)',
       };
+    case 'response_ready':
+      return {
+        ...base,
+        background: 'radial-gradient(circle at 35% 35%, #60a5fa, #3b82f6)',
+        boxShadow: '0 0 24px rgba(96,165,250,0.5)',
+        transform: 'scale(0.9)',
+      };
     case 'error':
       return {
         ...base,
@@ -376,6 +449,17 @@ const styles: Record<string, React.CSSProperties> = {
     color: 'var(--color-red)',
     textAlign: 'center',
     maxWidth: 260,
+    animation: 'fadeSlideUp 0.3s ease both',
+  },
+  interventionHint: {
+    fontSize: '0.7rem',
+    color: '#f59e0b',
+    textAlign: 'center',
+    maxWidth: 260,
+    padding: '6px 10px',
+    borderRadius: '8px',
+    background: 'rgba(245,158,11,0.08)',
+    border: '1px solid rgba(245,158,11,0.2)',
     animation: 'fadeSlideUp 0.3s ease both',
   },
 };
@@ -457,6 +541,11 @@ const cardStyles: Record<string, React.CSSProperties> = {
     fontSize: '0.88rem',
     lineHeight: 1.55,
     color: 'var(--text-primary)',
+  },
+  hint: {
+    fontSize: '0.72rem',
+    color: 'var(--text-muted)',
+    textAlign: 'center' as const,
   },
   steps: {
     display: 'flex',

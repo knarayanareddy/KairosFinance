@@ -1,11 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import type { AccountSummary } from '@bunqsy/shared';
 import { useWebSocket } from './hooks/useWebSocket.js';
 import { useLocalSim } from './hooks/useLocalSim.js';
 import { BUNQSYScore } from './components/BunqsyScore.js';
 import { OracleVotingPanel } from './components/OracleVotingPanel.js';
 import { InterventionCard } from './components/InterventionCard.js';
-import { VoiceOrb } from './components/VoiceOrb.js';
+import { VoiceOrb, speakText } from './components/VoiceOrb.js';
 import { ReceiptScanner } from './components/ReceiptScanner.js';
 import { DreamTrigger, DreamBriefingModal, type DreamBriefingType } from './components/DreamBriefing.js';
 import { ForecastChart } from './components/ForecastChart.js';
@@ -77,6 +77,7 @@ const RECENT_TXS = [
 export function App(): React.JSX.Element {
   const ws = useWebSocket();
   const sim = useLocalSim();
+  const lastSpokenInterventionId = useRef<string | null>(null);
   const [dreamModalOpen, setDreamModalOpen] = useState(false);
   const [dreamBriefing, setDreamBriefing] = useState<DreamBriefingType | null>(null);
   const [dreamRunning, setDreamRunning] = useState(false);
@@ -96,6 +97,14 @@ export function App(): React.JSX.Element {
     const timer = setInterval(() => { void fetchAccounts(); }, 30_000);
     return (): void => { cancelled = true; clearInterval(timer); };
   }, []);
+
+  // Auto-TTS when a new intervention arrives from the WebSocket
+  useEffect(() => {
+    if (ws.intervention && ws.intervention.id !== lastSpokenInterventionId.current) {
+      lastSpokenInterventionId.current = ws.intervention.id;
+      void speakText(ws.intervention.narration);
+    }
+  }, [ws.intervention]);
 
   async function handleDemoReset(): Promise<void> {
     await fetch('/api/demo/reset', { method: 'POST' });
@@ -327,7 +336,12 @@ export function App(): React.JSX.Element {
             {/* ── Voice Orb ──────────────────────────────────────────────── */}
             <div className="glass" style={{ padding: '20px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
               <span className="section-label" style={{ alignSelf: 'flex-start' }}>Voice Command</span>
-              <VoiceOrb />
+              <VoiceOrb
+                activeIntervention={ws.intervention ? {
+                  id: ws.intervention.id,
+                  planId: ws.intervention.executionPlanId,
+                } : null}
+              />
             </div>
 
           </div>

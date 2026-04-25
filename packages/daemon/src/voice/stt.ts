@@ -9,7 +9,7 @@ export async function transcribeAudio(audioBuffer: Buffer, mimeType: string): Pr
     : '.webm';
 
   const formData = new FormData();
-  formData.append('audio', new Blob([new Uint8Array(audioBuffer)], { type: mimeType }), `audio${ext}`);
+  formData.append('file', new Blob([new Uint8Array(audioBuffer)], { type: mimeType }), `audio${ext}`);
   formData.append('model_id', 'scribe_v1');
   formData.append('language_code', 'en');
 

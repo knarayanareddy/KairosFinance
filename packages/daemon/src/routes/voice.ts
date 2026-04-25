@@ -3,13 +3,24 @@ import { getDb } from '../memory/db.js';
 import { transcribeAudio } from '../voice/stt.js';
 import { textToSpeech } from '../voice/tts.js';
 import { planFromTranscript } from '../voice/planner.js';
-import { createExecutionPlan } from '../bunq/execute.js';
+import { classifyIntent } from '../voice/intent.js';
+import {
+  handleTriggerDream,
+  handleSimulateFraud,
+  handleSimulateSalary,
+  handleReadScore,
+  handleReadInterventions,
+  handleReadForecast,
+  handleReadDreamReport,
+} from '../voice/actions.js';
+import { createExecutionPlan, confirmPlan, executePlan, cancelPlan } from '../bunq/execute.js';
+import { resolveIntervention } from '../memory/interventions.js';
 import { wsEmit } from './ws.js';
 import type { ScoreLogRow, UserProfileRow } from '@bunqsy/shared';
 
 interface AccountRow {
   jar_account_id: number;
-  name: string;
+  name:           string;
   current_amount: number;
 }
 
@@ -22,50 +33,70 @@ function buildPlannerContext(db: ReturnType<typeof getDb>): Parameters<typeof pl
     .prepare(`SELECT * FROM user_profile WHERE id = 1`)
     .get() as UserProfileRow | undefined;
 
-  // Build account list from goals with linked jar accounts
   const jarAccounts = db
-    .prepare(`SELECT jar_account_id, name, current_amount FROM goals WHERE jar_account_id IS NOT NULL AND enabled = 1`)
+    .prepare(
+      `SELECT jar_account_id, name, current_amount FROM goals
+       WHERE jar_account_id IS NOT NULL AND enabled = 1`,
+    )
     .all() as AccountRow[];
 
-  // Use salary_amount as a proxy when we don't have a live balance read.
-  // The planner only needs approximate scale (e.g. to flag an impossible "send €50k").
-  const salaryAmt = profile?.salary_amount ?? null;
-  const balanceScore = latestScore?.balance_component ?? 50; // 0-100
+  const salaryAmt      = profile?.salary_amount ?? null;
+  const balanceScore   = latestScore?.balance_component ?? 50;
   const estimatedBalance = salaryAmt !== null
-    ? salaryAmt * (balanceScore / 100)  // rough: fraction of salary
-    : balanceScore * 20;                // fallback: scale to €0-2000
+    ? salaryAmt * (balanceScore / 100)
+    : balanceScore * 20;
 
   return {
     balanceEur: estimatedBalance,
-    accounts: jarAccounts.map(g => ({
-      id: g.jar_account_id,
+    accounts:   jarAccounts.map((g) => ({
+      id:          g.jar_account_id,
       description: g.name,
-      balanceEur: g.current_amount,
+      balanceEur:  g.current_amount,
     })),
   };
 }
 
-export async function registerVoiceRoute(fastify: FastifyInstance): Promise<void> {
-  // ── POST /api/voice ─────────────────────────────────────────────────────────
-  fastify.post('/api/voice', async (req: FastifyRequest, reply: FastifyReply) => {
-    const uploaded = await req.file();
+export async function registerVoiceRoute(
+  fastify: FastifyInstance,
+  triggerTick?: () => Promise<void>,
+  getAID?: () => number,
+): Promise<void> {
 
-    if (!uploaded) {
+  // ── POST /api/voice ──────────────────────────────────────────────────────────
+  fastify.post('/api/voice', async (req: FastifyRequest, reply: FastifyReply) => {
+    // Read all multipart parts: audio file + optional context fields
+    let audioBuffer: Buffer | null = null;
+    let mimeType                   = 'audio/webm';
+    let pendingPlanId: string | null           = null;
+    let activeInterventionId: string | null    = null;
+    let activeInterventionPlanId: string | null = null;
+
+    try {
+      for await (const part of req.parts()) {
+        if (part.type === 'file' && part.fieldname === 'audio') {
+          audioBuffer = await part.toBuffer();
+          mimeType    = part.mimetype || 'audio/webm';
+        } else if (part.type === 'field') {
+          const val = String(part.value).trim();
+          if (part.fieldname === 'pendingPlanId'            && val) pendingPlanId            = val;
+          if (part.fieldname === 'activeInterventionId'     && val) activeInterventionId     = val;
+          if (part.fieldname === 'activeInterventionPlanId' && val) activeInterventionPlanId = val;
+        }
+      }
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      return reply.status(400).send({ error: `Multipart parse error: ${message}` });
+    }
+
+    if (!audioBuffer || audioBuffer.length === 0) {
       return reply.status(400).send({ error: 'No audio file uploaded' });
     }
 
-    const audioBuffer = await uploaded.toBuffer();
-    const mimeType = uploaded.mimetype || 'audio/webm';
-
-    if (audioBuffer.length === 0) {
-      return reply.status(400).send({ error: 'Audio file is empty' });
-    }
-
-    // ── Step 1: Speech-to-text ────────────────────────────────────────────────
+    // ── Step 1: Speech-to-text ─────────────────────────────────────────────────
     let transcript: string;
     try {
       transcript = await transcribeAudio(audioBuffer, mimeType);
-    } catch (err) {
+    } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[voice] STT failed:', message);
       return reply.status(502).send({ error: `Transcription failed: ${message}` });
@@ -75,23 +106,151 @@ export async function registerVoiceRoute(fastify: FastifyInstance): Promise<void
       return reply.status(422).send({ error: 'No speech detected in audio' });
     }
 
-    // ── Step 2: Plan from transcript ─────────────────────────────────────────
+    console.log(`[voice] Transcript: "${transcript}"`);
+
+    // ── Step 2: Classify intent ────────────────────────────────────────────────
+    const intent = await classifyIntent(transcript);
+    console.log(`[voice] Intent: ${intent}`);
+
     const db = getDb();
+
+    // ── Step 3: Route by intent ────────────────────────────────────────────────
+
+    // ── Confirm pending plan or active intervention ──────────────────────────
+    if (intent === 'confirm') {
+      if (pendingPlanId) {
+        try {
+          await confirmPlan(pendingPlanId);
+          await executePlan(pendingPlanId);
+          return reply.send({
+            kind:            'confirmed',
+            planId:          pendingPlanId,
+            spokenResponse:  'Confirmed. Your plan is executing now.',
+            transcript,
+          });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          return reply.status(400).send({ error: message });
+        }
+      }
+
+      if (activeInterventionPlanId) {
+        // Intervention has an execution plan — confirming means the transaction
+        // is legitimate (allow it through by cancelling the block plan)
+        try {
+          await cancelPlan(activeInterventionPlanId);
+          if (activeInterventionId) resolveIntervention(db, activeInterventionId, 'DISMISSED');
+          return reply.send({
+            kind:           'confirmed',
+            spokenResponse: 'Transaction authorized. The alert has been dismissed.',
+            transcript,
+          });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          return reply.status(400).send({ error: message });
+        }
+      }
+
+      if (activeInterventionId) {
+        resolveIntervention(db, activeInterventionId, 'DISMISSED');
+        return reply.send({
+          kind:           'confirmed',
+          spokenResponse: 'Alert dismissed.',
+          transcript,
+        });
+      }
+
+      return reply.send({
+        kind:           'response',
+        action:         'confirm',
+        spokenResponse: 'Nothing pending to confirm.',
+        transcript,
+      });
+    }
+
+    // ── Deny pending plan or active intervention ──────────────────────────────
+    if (intent === 'deny') {
+      if (pendingPlanId) {
+        try {
+          await cancelPlan(pendingPlanId);
+          return reply.send({
+            kind:           'denied',
+            planId:         pendingPlanId,
+            spokenResponse: 'Plan cancelled.',
+            transcript,
+          });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          return reply.status(400).send({ error: message });
+        }
+      }
+
+      if (activeInterventionPlanId) {
+        // Denying (blocking) a fraud — execute the CANCEL_DRAFT plan
+        try {
+          await confirmPlan(activeInterventionPlanId);
+          await executePlan(activeInterventionPlanId);
+          if (activeInterventionId) resolveIntervention(db, activeInterventionId, 'EXECUTED');
+          return reply.send({
+            kind:           'denied',
+            spokenResponse: 'Transaction blocked. The fraud intervention has been executed.',
+            transcript,
+          });
+        } catch (err: unknown) {
+          const message = err instanceof Error ? err.message : String(err);
+          return reply.status(400).send({ error: message });
+        }
+      }
+
+      if (activeInterventionId) {
+        resolveIntervention(db, activeInterventionId, 'DISMISSED');
+        return reply.send({
+          kind:           'denied',
+          spokenResponse: 'Alert dismissed.',
+          transcript,
+        });
+      }
+
+      return reply.send({
+        kind:           'response',
+        action:         'deny',
+        spokenResponse: 'Nothing pending to deny.',
+        transcript,
+      });
+    }
+
+    // ── System commands ───────────────────────────────────────────────────────
+    if (intent === 'trigger_dream') {
+      const result = await handleTriggerDream(db, wsEmit);
+      return reply.send({ kind: 'response', action: intent, ...result, transcript });
+    }
+
+    if (intent === 'simulate_fraud') {
+      const result = handleSimulateFraud(db, getAID?.() ?? 1, triggerTick);
+      return reply.send({ kind: 'response', action: intent, ...result, transcript });
+    }
+
+    if (intent === 'simulate_salary') {
+      const result = handleSimulateSalary(db, getAID?.() ?? 1, triggerTick);
+      return reply.send({ kind: 'response', action: intent, ...result, transcript });
+    }
+
+    if (intent === 'read_score')         return reply.send({ kind: 'response', action: intent, ...handleReadScore(db),         transcript });
+    if (intent === 'read_interventions') return reply.send({ kind: 'response', action: intent, ...handleReadInterventions(db), transcript });
+    if (intent === 'read_forecast')      return reply.send({ kind: 'response', action: intent, ...handleReadForecast(db),      transcript });
+    if (intent === 'read_dream_report')  return reply.send({ kind: 'response', action: intent, ...handleReadDreamReport(db),   transcript });
+
+    // ── Financial command — existing planner flow ─────────────────────────────
     const context = buildPlannerContext(db);
-
     const { narratedText, steps } = await planFromTranscript(transcript, context);
-
-    // ── Step 3: Persist plan (status = PENDING) — via the write gateway ──────
     const plan = await createExecutionPlan(steps, narratedText);
-
-    // ── Step 4: Broadcast plan over WebSocket ─────────────────────────────────
     wsEmit({ type: 'plan_update', payload: plan });
 
-    // ── Step 5: Return to frontend ────────────────────────────────────────────
     return reply.send({
-      planId: plan.id,
+      kind:         'plan',
+      planId:       plan.id,
       narratedText: plan.narratedText,
-      steps: plan.steps,
+      steps:        plan.steps,
       transcript,
     });
   });
@@ -109,7 +268,7 @@ export async function registerVoiceRoute(fastify: FastifyInstance): Promise<void
         .header('Content-Type', 'audio/mpeg')
         .header('Content-Length', String(audioBuffer.length))
         .send(audioBuffer);
-    } catch (err) {
+    } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err);
       console.error('[voice] TTS failed:', message);
       return reply.status(502).send({ error: message });
