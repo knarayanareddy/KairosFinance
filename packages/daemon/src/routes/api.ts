@@ -5,7 +5,7 @@ import { getInterventionHistory, resolveIntervention } from '../memory/intervent
 import { confirmPlan, executePlan, cancelPlan } from '../bunq/execute.js';
 import { offerPatternPromotion } from '../intervention/pattern-promotion.js';
 import { getAccountSummaries } from '../state.js';
-import type { ScoreLogRow, OracleVote, InterventionRow } from '@bunqsy/shared';
+import type { ScoreLogRow, OracleVote, InterventionRow, TransactionRow } from '@bunqsy/shared';
 
 export async function registerApiRoutes(fastify: FastifyInstance): Promise<void> {
 
@@ -89,6 +89,56 @@ export async function registerApiRoutes(fastify: FastifyInstance): Promise<void>
       const db = getDb();
       resolveIntervention(db, interventionId, 'DISMISSED');
       return reply.send({ ok: true });
+    },
+  );
+
+  // ── GET /api/dna — Financial DNA card + patterns ──────────────────────────
+  fastify.get('/api/dna', async (_req: FastifyRequest, reply: FastifyReply) => {
+    const db = getDb();
+
+    const session = db
+      .prepare(
+        `SELECT dna_card, suggestions, completed_at FROM dream_sessions
+         WHERE status = 'COMPLETED' ORDER BY completed_at DESC LIMIT 1`,
+      )
+      .get() as { dna_card: string | null; suggestions: string | null; completed_at: string } | undefined;
+
+    const patterns = db
+      .prepare(
+        `SELECT name, confidence FROM patterns
+         WHERE confidence > 0.4 ORDER BY confidence DESC LIMIT 6`,
+      )
+      .all() as Array<{ name: string; confidence: number }>;
+
+    if (!session?.dna_card) {
+      return reply.send({ dnaCard: null, suggestions: [], patterns, completedAt: null });
+    }
+
+    let suggestions: string[] = [];
+    try {
+      suggestions = JSON.parse(session.suggestions ?? '[]') as string[];
+    } catch { /* ignore parse errors */ }
+
+    return reply.send({
+      dnaCard:     session.dna_card,
+      suggestions,
+      patterns,
+      completedAt: session.completed_at,
+    });
+  });
+
+  // ── GET /api/transactions — recent transactions from DB ───────────────────
+  fastify.get(
+    '/api/transactions',
+    async (req: FastifyRequest<{ Querystring: { limit?: string } }>, reply: FastifyReply) => {
+      const db = getDb();
+      const limit = Math.min(parseInt((req.query as { limit?: string }).limit ?? '30', 10), 100);
+      const rows = db
+        .prepare(
+          `SELECT * FROM transactions ORDER BY created_at DESC LIMIT ?`,
+        )
+        .all(limit) as TransactionRow[];
+      return reply.send(rows);
     },
   );
 

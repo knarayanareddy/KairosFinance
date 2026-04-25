@@ -20,10 +20,10 @@ import { registerForecastRoute } from './routes/forecast.js';
 import { registerDemoRoute } from './routes/demo.js';
 import { scheduleDreamMode } from './dream/scheduler.js';
 import { triggerDream } from './dream/trigger.js';
-import type { SessionRow, BUNQSYScore, InterventionPayload, OracleVerdict } from '@bunqsy/shared';
+import type { SessionRow, BUNQSYScore, InterventionPayload, OracleVerdict, ScoreDeltaExplainPayload } from '@bunqsy/shared';
 import type { BunqSession } from './bunq/auth.js';
 import type { RecallSnapshot } from './heartbeat/recall.js';
-import { setAccountSummaries } from './state.js';
+import { setAccountSummaries, setLastScore } from './state.js';
 
 // ─── Session persistence helpers ─────────────────────────────────────────────
 
@@ -107,7 +107,8 @@ async function boot(): Promise<void> {
     runOracle: oracle,
     dispatchIntervention: (verdict: OracleVerdict, snapshot: RecallSnapshot) =>
       dispatchIntervention(verdict, snapshot, db),
-    onScore:        (score: BUNQSYScore)          => { wsEmit({ type: 'score_update', payload: score }); },
+    onScore:        (score: BUNQSYScore)          => { setLastScore(score); wsEmit({ type: 'score_update', payload: score }); },
+    onScoreDelta:   (payload: ScoreDeltaExplainPayload) => { wsEmit({ type: 'score_delta_explain', payload }); },
     onIntervention: (payload: InterventionPayload) => { wsEmit({ type: 'intervention', payload }); },
     onTickRecord:   (snapshot: RecallSnapshot)     => {
       activeAID = snapshot.primaryAccountId;
@@ -122,7 +123,7 @@ async function boot(): Promise<void> {
   await registerReceiptRoute(fastify);
   await registerDreamRoutes(fastify);
   await registerForecastRoute(fastify);
-  await registerDemoRoute(fastify, () => runTick(heartbeatDeps), () => activeAID);
+  await registerDemoRoute(fastify, () => runTick(heartbeatDeps), () => activeAID, client);
 
   // ── Listen ─────────────────────────────────────────────────────────────────
   await fastify.listen({ port, host: '0.0.0.0' });

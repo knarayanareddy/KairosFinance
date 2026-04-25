@@ -1,13 +1,16 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import type { ReceiptResult, ReceiptData, LineItem } from '@bunqsy/shared';
 
+type LogState = 'idle' | 'loading' | 'done' | 'error';
+
 type ScanState = 'idle' | 'scanning' | 'done' | 'error';
 
 interface Props {
   onResult?: (result: ReceiptResult) => void;
+  onExpenseLogged?: () => void;
 }
 
-export function ReceiptScanner({ onResult }: Props): React.JSX.Element {
+export function ReceiptScanner({ onResult, onExpenseLogged }: Props): React.JSX.Element {
   const [scanState, setScanState] = useState<ScanState>('idle');
   const [preview, setPreview] = useState<string | null>(null);
   const [result, setResult] = useState<ReceiptResult | null>(null);
@@ -30,8 +33,13 @@ export function ReceiptScanner({ onResult }: Props): React.JSX.Element {
     setScanState('scanning');
 
     try {
+      // Claude Vision limit: 5 MB base64 (~3.75 MB raw). Compress before upload.
+      const compressed = file.size > 3 * 1024 * 1024
+        ? await compressImage(file, 3 * 1024 * 1024)
+        : file;
+
       const formData = new FormData();
-      formData.append('image', file);
+      formData.append('image', compressed);
 
       const res = await fetch('/api/receipt', { method: 'POST', body: formData });
       const data = await res.json() as unknown;
@@ -142,7 +150,7 @@ export function ReceiptScanner({ onResult }: Props): React.JSX.Element {
 
       {/* Results */}
       {scanState === 'done' && result && (
-        <ReceiptBreakdown result={result} />
+        <ReceiptBreakdown result={result} onExpenseLogged={onExpenseLogged} />
       )}
     </div>
   );
@@ -173,8 +181,27 @@ function ScanPreview({
 
 // ─── Receipt breakdown ────────────────────────────────────────────────────────
 
-function ReceiptBreakdown({ result }: { result: ReceiptResult }): React.JSX.Element {
-  const { receipt, lineItemSumValid, matched, matchedTransactionId, insight } = result;
+function ReceiptBreakdown({
+  result,
+  onExpenseLogged,
+}: {
+  result: ReceiptResult;
+  onExpenseLogged?: () => void;
+}): React.JSX.Element {
+  const { receiptId, receipt, lineItemSumValid, matched, matchedTransactionId, insight } = result;
+  const [logState, setLogState] = useState<LogState>('idle');
+
+  async function handleLogExpense(): Promise<void> {
+    setLogState('loading');
+    try {
+      const res = await fetch(`/api/receipt/${receiptId}/log-expense`, { method: 'POST' });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      setLogState('done');
+      onExpenseLogged?.();
+    } catch {
+      setLogState('error');
+    }
+  }
 
   return (
     <div style={breakdownStyles.root}>
@@ -221,6 +248,25 @@ function ReceiptBreakdown({ result }: { result: ReceiptResult }): React.JSX.Elem
 
       {/* BUNQSY insight */}
       {insight && <InsightCard insight={insight} />}
+
+      {/* Action row */}
+      <div style={{ display: 'flex', gap: 8, marginTop: 4 }}>
+        {matched ? (
+          <div style={actionStyles.savedBadge}>
+            ✓ Saved · transaction categorised as <em>{receipt.category}</em>
+          </div>
+        ) : logState === 'done' ? (
+          <div style={actionStyles.savedBadge}>✓ Logged as expense</div>
+        ) : (
+          <button
+            onClick={() => { void handleLogExpense(); }}
+            disabled={logState === 'loading'}
+            style={actionStyles.logBtn}
+          >
+            {logState === 'loading' ? 'Logging…' : logState === 'error' ? '⚠ Retry log' : '+ Log as Expense'}
+          </button>
+        )}
+      </div>
     </div>
   );
 }
@@ -287,6 +333,55 @@ function InsightCard({ insight }: { insight: string }): React.JSX.Element {
       <p style={insightStyles.text}>{insight}</p>
     </div>
   );
+}
+
+// ─── Image compression ────────────────────────────────────────────────────────
+
+async function compressImage(file: File, maxBytes: number): Promise<File> {
+  const bitmap = await createImageBitmap(file);
+  const { width, height } = bitmap;
+
+  // Scale down so the longer edge is ≤ 1920px, which is more than enough for OCR
+  const maxEdge = 1920;
+  const scale = Math.min(1, maxEdge / Math.max(width, height));
+  const w = Math.round(width * scale);
+  const h = Math.round(height * scale);
+
+  const canvas = document.createElement('canvas');
+  canvas.width  = w;
+  canvas.height = h;
+  const ctx = canvas.getContext('2d')!;
+  ctx.drawImage(bitmap, 0, 0, w, h);
+  bitmap.close();
+
+  // Try decreasing quality until the blob fits
+  for (const quality of [0.85, 0.75, 0.65, 0.5]) {
+    const blob = await new Promise<Blob>((resolve, reject) =>
+      canvas.toBlob(
+        b => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')),
+        'image/jpeg',
+        quality,
+      ),
+    );
+    if (blob.size <= maxBytes) {
+      return new File([blob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
+    }
+  }
+
+  // Last resort: scale down further to 1280px and retry at 0.7
+  const scale2 = Math.min(1, 1280 / Math.max(w, h));
+  const canvas2 = document.createElement('canvas');
+  canvas2.width  = Math.round(w * scale2);
+  canvas2.height = Math.round(h * scale2);
+  canvas2.getContext('2d')!.drawImage(canvas, 0, 0, canvas2.width, canvas2.height);
+  const finalBlob = await new Promise<Blob>((resolve, reject) =>
+    canvas2.toBlob(
+      b => b ? resolve(b) : reject(new Error('canvas.toBlob returned null')),
+      'image/jpeg',
+      0.7,
+    ),
+  );
+  return new File([finalBlob], file.name.replace(/\.[^.]+$/, '.jpg'), { type: 'image/jpeg' });
 }
 
 // ─── Styles ───────────────────────────────────────────────────────────────────
@@ -535,6 +630,29 @@ const lineStyles: Record<string, React.CSSProperties> = {
     fontVariantNumeric: 'tabular-nums',
     width: 44,
     textAlign: 'right' as const,
+  },
+};
+
+const actionStyles: Record<string, React.CSSProperties> = {
+  savedBadge: {
+    fontSize: '0.72rem',
+    color: 'var(--color-green)',
+    padding: '6px 10px',
+    borderRadius: 'var(--radius-sm)',
+    background: 'var(--color-green-glow)',
+    flex: 1,
+  },
+  logBtn: {
+    flex: 1,
+    padding: '8px 14px',
+    borderRadius: 'var(--radius-sm)',
+    background: 'rgba(99,102,241,0.1)',
+    border: '1px solid rgba(99,102,241,0.3)',
+    color: '#818cf8',
+    fontSize: '0.78rem',
+    fontWeight: 600,
+    cursor: 'pointer',
+    fontFamily: "'Montserrat', sans-serif",
   },
 };
 

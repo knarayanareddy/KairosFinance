@@ -10,6 +10,8 @@ import { ReceiptScanner } from './components/ReceiptScanner.js';
 import { DreamTrigger, DreamBriefingModal, type DreamBriefingType } from './components/DreamBriefing.js';
 import { ForecastChart } from './components/ForecastChart.js';
 import { FraudBlock } from './components/FraudBlock.js';
+import { DNACard } from './components/DNACard.js';
+import { RecentTransactions } from './components/RecentTransactions.js';
 
 // ── Superscript-decimal currency (matches authentic bunq visual language) ─────
 function BunqBalance({
@@ -63,15 +65,6 @@ const SPEND_CATS: Array<{ icon: string; bg: string; label: string; txCount: numb
   { icon: '🔄', bg: '#1A4D2E', label: 'Subscriptions', txCount: 3, amount: 95.97,   pct: 28 },
 ];
 
-const RECENT_TXS = [
-  { merchant: 'Albert Heijn', icon: '🛒', iconBg: '#1A4480', amount: -47.32,   time: '2h ago',  positive: false },
-  { merchant: 'Spotify',      icon: '🎵', iconBg: '#1DB954', amount: -9.99,    time: '1d ago',  positive: false },
-  { merchant: 'NS Railways',  icon: '🚆', iconBg: '#2B5EA7', amount: -24.80,   time: '1d ago',  positive: false },
-  { merchant: 'Boulangerie',  icon: '🥐', iconBg: '#8B4513', amount: -12.50,   time: '2d ago',  positive: false },
-  { merchant: 'Employer BV',  icon: '💼', iconBg: '#1B6038', amount: 3200.00,  time: '20d ago', positive: true  },
-  { merchant: 'Café Bruin',   icon: '☕', iconBg: '#6F4E37', amount: -18.40,   time: '3d ago',  positive: false },
-] as const;
-
 // ─────────────────────────────────────────────────────────────────────────────
 
 export function App(): React.JSX.Element {
@@ -82,6 +75,9 @@ export function App(): React.JSX.Element {
   const [dreamBriefing, setDreamBriefing] = useState<DreamBriefingType | null>(null);
   const [dreamRunning, setDreamRunning] = useState(false);
   const [accountSummaries, setAccountSummaries] = useState<AccountSummary[]>([]);
+  const [showDelta, setShowDelta] = useState(false);
+  const [dismissedInterventionId, setDismissedInterventionId] = useState<string | null>(null);
+  const [txRefreshKey, setTxRefreshKey] = useState(0);
 
   useEffect(() => {
     let cancelled = false;
@@ -98,13 +94,24 @@ export function App(): React.JSX.Element {
     return (): void => { cancelled = true; clearInterval(timer); };
   }, []);
 
-  // Auto-TTS when a new intervention arrives from the WebSocket
+  // Auto-TTS when a new intervention arrives; also clear any prior dismissed state
   useEffect(() => {
     if (ws.intervention && ws.intervention.id !== lastSpokenInterventionId.current) {
       lastSpokenInterventionId.current = ws.intervention.id;
+      setDismissedInterventionId(null);
       void speakText(ws.intervention.narration);
     }
   }, [ws.intervention]);
+
+  // Show score delta toast for 6 seconds when a new explanation arrives
+  useEffect(() => {
+    if (ws.scoreDelta) {
+      setShowDelta(true);
+      const t = setTimeout(() => setShowDelta(false), 6000);
+      return () => clearTimeout(t);
+    }
+    return undefined;
+  }, [ws.scoreDelta]);
 
   async function handleDemoReset(): Promise<void> {
     await fetch('/api/demo/reset', { method: 'POST' });
@@ -193,6 +200,29 @@ export function App(): React.JSX.Element {
               💰 Salary In
             </button>
 
+            <DreamTrigger
+              running={dreamRunning}
+              onTrigger={async () => {
+                setDreamRunning(true);
+                await fetch('/api/demo/reset', { method: 'POST' });
+                setTimeout(() => {
+                  setDreamBriefing({
+                    sessionId: '1',
+                    briefingText: "Last night I analysed your last 7 days of spending. You're tracking well against your Amsterdam goal — you saved €140 more than last week.",
+                    dnaCard: 'Disciplined saver, impulsive weekends',
+                    suggestions: [
+                      'Cap weekend dining at €80 this week',
+                      'Move €200 to Amsterdam trip goal now',
+                      'Cancel duplicate streaming subscriptions',
+                    ],
+                    completedAt: new Date().toISOString(),
+                  });
+                  setDreamRunning(false);
+                  setDreamModalOpen(true);
+                }, 3000);
+              }}
+            />
+
             <div style={{
               width: '34px', height: '34px', borderRadius: '50%',
               background: 'linear-gradient(135deg, #00bfff, #00ff95)',
@@ -206,6 +236,42 @@ export function App(): React.JSX.Element {
 
       {/* ── Main layout ────────────────────────────────────────────────────── */}
       <main style={{ maxWidth: '1400px', margin: '0 auto', padding: '28px 24px', position: 'relative', zIndex: 1 }}>
+
+        {/* Score delta explainer toast */}
+        {showDelta && ws.scoreDelta && (
+          <div style={{
+            marginBottom: '12px',
+            padding: '10px 16px',
+            borderRadius: '14px',
+            background: ws.scoreDelta.delta >= 0
+              ? 'rgba(0,255,149,0.08)'
+              : 'rgba(239,68,68,0.08)',
+            border: `1px solid ${ws.scoreDelta.delta >= 0 ? 'rgba(0,255,149,0.2)' : 'rgba(239,68,68,0.2)'}`,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '10px',
+            animation: 'slideUp 0.3s ease',
+          }}>
+            <span style={{
+              fontSize: '1rem',
+              fontWeight: 800,
+              color: ws.scoreDelta.delta >= 0 ? '#00ff95' : '#ef4444',
+              flexShrink: 0,
+            }}>
+              {ws.scoreDelta.delta >= 0 ? `+${ws.scoreDelta.delta}` : ws.scoreDelta.delta}
+            </span>
+            <span style={{ fontSize: '0.78rem', color: 'rgba(255,255,255,0.7)', lineHeight: 1.4 }}>
+              {ws.scoreDelta.reason}
+            </span>
+            <button
+              onClick={() => setShowDelta(false)}
+              style={{
+                marginLeft: 'auto', background: 'none', border: 'none',
+                color: 'rgba(255,255,255,0.25)', cursor: 'pointer', fontSize: '0.7rem', flexShrink: 0,
+              }}
+            >✕</button>
+          </div>
+        )}
 
         {/* Top-of-page intervention alerts */}
         {sim.salaryIntervention && (
@@ -226,14 +292,24 @@ export function App(): React.JSX.Element {
         {ws.intervention &&
           ws.intervention.type !== 'FRAUD' &&
           ws.intervention.type !== 'FREEZE_CARD' &&
+          ws.intervention.id !== dismissedInterventionId &&
           !sim.salaryIntervention && (
           <div style={{ marginBottom: '18px', animation: 'slideUp 0.4s ease' }}>
             <InterventionCard
               intervention={ws.intervention}
-              onConfirm={() => { }}
+              onConfirm={async () => {
+                const { id, executionPlanId } = ws.intervention!;
+                if (executionPlanId) {
+                  await fetch(`/api/confirm/${executionPlanId}`, { method: 'POST' });
+                } else {
+                  await fetch(`/api/dismiss/${id}`, { method: 'POST' });
+                }
+                setDismissedInterventionId(id);
+              }}
               onDismiss={() => {
-                const id = ws.intervention?.id;
-                if (id) void fetch(`/api/dismiss/${id}`, { method: 'POST' });
+                const id = ws.intervention!.id;
+                void fetch(`/api/dismiss/${id}`, { method: 'POST' });
+                setDismissedInterventionId(id);
               }}
             />
           </div>
@@ -514,46 +590,11 @@ export function App(): React.JSX.Element {
             </div>
 
             {/* ── Recent Transactions ────────────────────────────────────── */}
-            <div style={{
-              background: 'rgba(255,255,255,0.042)',
-              border: '1px solid rgba(255,255,255,0.08)',
-              borderRadius: '22px',
-              padding: '20px',
-            }}>
-              <div className="section-label" style={{ marginBottom: '14px' }}>Recent Transactions</div>
-              <div style={{ display: 'flex', flexDirection: 'column' }}>
-                {RECENT_TXS.map((tx, i) => (
-                  <div key={i}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '11px 0' }}>
-                      {/* Icon tile */}
-                      <div style={{
-                        width: '38px', height: '38px', borderRadius: '12px',
-                        background: tx.iconBg, display: 'flex', alignItems: 'center',
-                        justifyContent: 'center', fontSize: '16px', flexShrink: 0,
-                      }}>
-                        {tx.icon}
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontSize: '13px', fontWeight: 600, color: '#E2E8F0', letterSpacing: '-0.01em' }}>
-                          {tx.merchant}
-                        </div>
-                        <div style={{ fontSize: '10px', color: 'rgba(255,255,255,0.26)', marginTop: '2px' }}>
-                          {tx.time}
-                        </div>
-                      </div>
-                      <div style={{ fontSize: '14px', fontWeight: 700, color: tx.positive ? '#00ff95' : '#CBD5E1', letterSpacing: '-0.02em' }}>
-                        {tx.positive ? '+' : '−'}€{Math.abs(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      </div>
-                    </div>
-                    {i < RECENT_TXS.length - 1 && (
-                      <div style={{ height: '1px', background: 'rgba(255,255,255,0.04)', marginLeft: '50px' }} />
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
+            <RecentTransactions refreshKey={txRefreshKey} />
 
-            <ReceiptScanner />
+            <DNACard />
+
+            <ReceiptScanner onExpenseLogged={() => setTxRefreshKey(k => k + 1)} />
 
             {/* ── Detected Patterns ──────────────────────────────────────── */}
             <div style={{
@@ -614,29 +655,6 @@ export function App(): React.JSX.Element {
           <span>·</span>
           <span>Claude + bunq API</span>
         </div>
-
-        <DreamTrigger
-          running={dreamRunning}
-          onTrigger={async () => {
-            setDreamRunning(true);
-            await fetch('/api/demo/reset', { method: 'POST' });
-            setTimeout(() => {
-              setDreamBriefing({
-                sessionId: '1',
-                briefingText: "Last night I analysed your last 7 days of spending. You're tracking well against your Amsterdam goal — you saved €140 more than last week.",
-                dnaCard: 'Disciplined saver, impulsive weekends',
-                suggestions: [
-                  'Cap weekend dining at €80 this week',
-                  'Move €200 to Amsterdam trip goal now',
-                  'Cancel duplicate streaming subscriptions',
-                ],
-                completedAt: new Date().toISOString(),
-              });
-              setDreamRunning(false);
-              setDreamModalOpen(true);
-            }, 3000);
-          }}
-        />
 
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
           <button className="demo-reset-btn" onClick={() => { void handleDemoReset(); }}>

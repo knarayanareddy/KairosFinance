@@ -1,5 +1,5 @@
 import type Database from 'better-sqlite3';
-import type { BUNQSYScore, BUNQSYScoreComponents, TaggedMonetaryAccount, GoalRow, UserProfileRow } from '@bunqsy/shared';
+import type { BUNQSYScore, BUNQSYScoreComponents, TaggedMonetaryAccount, GoalRow, UserProfileRow, ScoreEmotion } from '@bunqsy/shared';
 import { getDailySpend, getAverageDailySpend } from '../memory/transactions.js';
 import { getGoals, getProfile } from '../memory/profile.js';
 import { getRecentScoreLogs } from './tick-log.js';
@@ -186,10 +186,17 @@ export function computeBunqsyScore(
   const value = Math.round(Math.min(100, Math.max(0, raw)));
   const trend = computeTrend(db, value);
 
+  const emotion: ScoreEmotion =
+    value >= 80 ? 'THRIVING' :
+    value >= 60 ? 'CALM' :
+    value >= 40 ? 'ALERT' :
+    'ANXIOUS';
+
   return {
     value,
     components,
     trend,
+    emotion,
     computedAt: new Date().toISOString(),
   };
 }

@@ -40,7 +40,7 @@ export async function extractReceipt(
   const base64 = imageBuffer.toString('base64');
 
   const msg = await client.messages.create({
-    model:      'claude-3-5-sonnet-20241022',
+    model:      'claude-sonnet-4-6',
     max_tokens: 1024,
     system:     EXTRACT_SYSTEM,
     messages: [

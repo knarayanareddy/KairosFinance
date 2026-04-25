@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, useCallback } from 'react';
-import type { WSMessage, BUNQSYScore, OracleVote, OracleVerdict, InterventionPayload, DreamBriefingPayload } from '@bunqsy/shared';
+import type { WSMessage, BUNQSYScore, OracleVote, OracleVerdict, InterventionPayload, DreamBriefingPayload, ScoreDeltaExplainPayload } from '@bunqsy/shared';
 
 export interface WSState {
   connected: boolean;
   score: BUNQSYScore | null;
+  scoreDelta: ScoreDeltaExplainPayload | null;
   votes: OracleVote[];
   verdict: OracleVerdict | null;
   intervention: InterventionPayload | null;
@@ -14,6 +15,7 @@ export interface WSState {
 const INITIAL_STATE: WSState = {
   connected: false,
   score: null,
+  scoreDelta: null,
   votes: [],
   verdict: null,
   intervention: null,
@@ -46,6 +48,8 @@ export function useWebSocket(): WSState {
         switch (msg.type) {
           case 'score_update':
             return { ...s, score: msg.payload };
+          case 'score_delta_explain':
+            return { ...s, scoreDelta: msg.payload };
           case 'oracle_vote':
             // Reset vote list on new oracle cycle
             const isNewCycle = s.verdict !== null;

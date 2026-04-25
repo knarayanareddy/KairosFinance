@@ -1,9 +1,10 @@
-import type { BUNQSYScore, OracleVerdict, InterventionPayload } from '@bunqsy/shared';
+import type { BUNQSYScore, OracleVerdict, InterventionPayload, ScoreDeltaExplainPayload } from '@bunqsy/shared';
 import { getDb } from '../memory/db.js';
 import { type BunqClient } from '../bunq/client.js';
 import { recall, type RecallSnapshot } from './recall.js';
 import { computeBunqsyScore } from './bunqsy-score.js';
-import { appendTickLog, appendScoreLog } from './tick-log.js';
+import { appendTickLog, appendScoreLog, getRecentScoreLogs } from './tick-log.js';
+import { tryExplainScoreDelta } from './score-delta.js';
 
 export interface HeartbeatDeps {
   client: BunqClient;
@@ -13,6 +14,7 @@ export interface HeartbeatDeps {
     snapshot: RecallSnapshot,
   ) => Promise<InterventionPayload | null>;
   onScore?: (score: BUNQSYScore) => void;
+  onScoreDelta?: (payload: ScoreDeltaExplainPayload) => void;
   onIntervention?: (payload: InterventionPayload) => void;
   onTickRecord?: (snapshot: RecallSnapshot) => void;
   onError?: (err: Error) => void;
@@ -29,10 +31,20 @@ export async function runTick(deps: HeartbeatDeps): Promise<void> {
   const snapshot = await recall(deps.client, db, accounts);
   console.log(`[heartbeat] Recall complete, AID=${snapshot.primaryAccountId}, new transactions: ${snapshot.newTxCount}`);
   deps.onTickRecord?.(snapshot);
+
+  // Read previous score BEFORE appending so delta comparison is against the last persisted value
+  const prevScores = getRecentScoreLogs(db, 1);
   const score = computeBunqsyScore(db, snapshot);
 
   appendScoreLog(db, score);
   deps.onScore?.(score);
+
+  // Explain meaningful score changes (>= 3 pts) via Claude Haiku
+  if (prevScores.length > 0) {
+    const delta = score.value - prevScores[0].score;
+    const deltaPayload = await tryExplainScoreDelta(delta, score.value, prevScores[0], score.components);
+    if (deltaPayload) deps.onScoreDelta?.(deltaPayload);
+  }
 
   let verdict: OracleVerdict | null = null;
   let interventionId: string | null = null;

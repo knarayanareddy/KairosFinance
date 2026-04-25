@@ -179,6 +179,26 @@ CREATE TABLE IF NOT EXISTS score_log (
 CREATE INDEX IF NOT EXISTS idx_score_log_logged_at
   ON score_log (logged_at DESC);
 
+-- ─── Receipt history (append-only) ──────────────────────────────────────────
+
+CREATE TABLE IF NOT EXISTS receipts (
+  id              TEXT PRIMARY KEY,   -- uuid
+  merchant        TEXT NOT NULL,
+  total           REAL NOT NULL,
+  currency        TEXT NOT NULL DEFAULT 'EUR',
+  date            TEXT NOT NULL,      -- YYYY-MM-DD from receipt
+  category        TEXT NOT NULL,
+  line_items      TEXT NOT NULL,      -- JSON array of LineItem
+  confidence      REAL NOT NULL,
+  matched_tx_id   TEXT,               -- NULL if no transaction match
+  insight         TEXT,
+  logged_expense  INTEGER NOT NULL DEFAULT 0,  -- 1 if manually logged
+  scanned_at      TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE INDEX IF NOT EXISTS idx_receipts_scanned_at
+  ON receipts (scanned_at DESC);
+
 -- ─── Forecast cache (single mutable row) ─────────────────────────────────────
 
 CREATE TABLE IF NOT EXISTS forecast_cache (

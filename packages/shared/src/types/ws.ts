@@ -8,11 +8,22 @@ export interface BUNQSYScoreComponents {
   upcoming: number;   // 0–100 contribution
 }
 
+export type ScoreEmotion = 'THRIVING' | 'CALM' | 'ALERT' | 'ANXIOUS';
+
 export interface BUNQSYScore {
   value: number;                    // 0–100 composite
   components: BUNQSYScoreComponents;
   trend: 'up' | 'down' | 'flat';
+  emotion: ScoreEmotion;
   computedAt: string;               // ISO 8601
+}
+
+export interface ScoreDeltaExplainPayload {
+  delta: number;        // positive = improved, negative = declined
+  fromScore: number;
+  toScore: number;
+  reason: string;       // plain-English explanation
+  computedAt: string;
 }
 
 export interface InterventionPayload {
@@ -37,11 +48,12 @@ export interface DreamBriefingPayload {
 }
 
 export type WSMessage =
-  | { type: 'score_update';   payload: BUNQSYScore }
-  | { type: 'oracle_vote';    payload: OracleVote }
-  | { type: 'oracle_verdict'; payload: OracleVerdict }
-  | { type: 'intervention';   payload: InterventionPayload }
-  | { type: 'plan_update';    payload: ExecutionPlan }
-  | { type: 'dream_complete'; payload: DreamBriefingPayload }
-  | { type: 'tick';           payload: { tickId: string; timestamp: string } }
-  | { type: 'error';          payload: { message: string } };
+  | { type: 'score_update';         payload: BUNQSYScore }
+  | { type: 'score_delta_explain';  payload: ScoreDeltaExplainPayload }
+  | { type: 'oracle_vote';          payload: OracleVote }
+  | { type: 'oracle_verdict';       payload: OracleVerdict }
+  | { type: 'intervention';         payload: InterventionPayload }
+  | { type: 'plan_update';          payload: ExecutionPlan }
+  | { type: 'dream_complete';       payload: DreamBriefingPayload }
+  | { type: 'tick';                 payload: { tickId: string; timestamp: string } }
+  | { type: 'error';                payload: { message: string } };

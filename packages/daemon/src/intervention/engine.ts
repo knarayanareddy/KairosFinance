@@ -10,6 +10,7 @@ import { run as salaryReceived }        from './handlers/salary-received.js';
 import { run as subscriptionDuplicate } from './handlers/subscription-duplicate.js';
 import { run as fraudBlock }            from './handlers/fraud-block.js';
 import { run as dreamSuggestion }       from './handlers/dream-suggestion.js';
+import { run as jarSweep }              from './handlers/jar-sweep.js';
 import type { HandlerFn } from './types.js';
 
 export type { HandlerResult, HandlerFn } from './types.js';
@@ -28,6 +29,7 @@ const HANDLER_MAP: Partial<Record<string, HandlerFn>> = {
   SUBSCRIPTION:     subscriptionDuplicate,
   SALARY:           salaryReceived,
   DREAM:            dreamSuggestion,
+  JAR_SWEEP:        jarSweep,
 };
 
 function selectHandler(interventionType: string | undefined): HandlerFn {

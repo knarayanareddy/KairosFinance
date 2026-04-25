@@ -4,7 +4,8 @@ export type OracleAgentId =
   | 'pattern-matcher'
   | 'subscription-watcher'
   | 'rent-proximity-guard'
-  | 'fraud-shadow';
+  | 'fraud-shadow'
+  | 'jar-optimizer';
 
 export interface OracleVote {
   agentId: OracleAgentId;

@@ -37,24 +37,51 @@ export function OracleVotingPanel({ votes, verdict, running, onTriggerFraud }: P
           </div>
           <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.55)' }}>6 independent sub-agents</div>
         </div>
-        <button
-          onClick={onTriggerFraud}
-          disabled={running}
-          style={{
-            background: running ? 'rgba(255,255,255,0.04)' : 'rgba(255,21,0,0.10)',
-            border: `1px solid ${running ? 'rgba(255,255,255,0.08)' : 'rgba(255,21,0,0.30)'}`,
-            borderRadius: '100px',
-            padding: '8px 16px',
-            color: running ? '#475569' : '#ff1500',
-            fontSize: '12px',
-            fontWeight: 600,
-            cursor: running ? 'not-allowed' : 'pointer',
-            transition: 'all 0.2s',
-            fontFamily: "'Montserrat', sans-serif",
-          }}
-        >
-          {running ? '⚡ Running...' : '⚡ Simulate Fraud Event'}
-        </button>
+        <div style={{ display: 'flex', gap: '8px' }}>
+          <button
+            onClick={async () => {
+              try {
+                const res = await fetch('/api/demo/topup', { method: 'POST' });
+                if (res.ok) alert('💰 Sandbox funded with €500! Syncing...');
+                else alert('❌ Funding failed. Check daemon logs.');
+              } catch (e) {
+                alert('❌ Error connecting to top-up API.');
+              }
+            }}
+            style={{
+              background: 'rgba(0,255,149,0.10)',
+              border: '1px solid rgba(0,255,149,0.30)',
+              borderRadius: '100px',
+              padding: '8px 16px',
+              color: '#00ff95',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              fontFamily: "'Montserrat', sans-serif",
+            }}
+          >
+            💰 Fund Sandbox
+          </button>
+          <button
+            onClick={onTriggerFraud}
+            disabled={running}
+            style={{
+              background: running ? 'rgba(255,255,255,0.04)' : 'rgba(255,21,0,0.10)',
+              border: `1px solid ${running ? 'rgba(255,255,255,0.08)' : 'rgba(255,21,0,0.30)'}`,
+              borderRadius: '100px',
+              padding: '8px 16px',
+              color: running ? '#475569' : '#ff1500',
+              fontSize: '12px',
+              fontWeight: 600,
+              cursor: running ? 'not-allowed' : 'pointer',
+              transition: 'all 0.2s',
+              fontFamily: "'Montserrat', sans-serif",
+            }}
+          >
+            {running ? '⚡ Running...' : '⚡ Simulate Fraud'}
+          </button>
+        </div>
       </div>
 
       {/* Agent rows */}

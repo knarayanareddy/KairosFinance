@@ -24,6 +24,7 @@ export type LineItem  = z.infer<typeof LineItemSchema>;
 export type ReceiptData = z.infer<typeof ReceiptDataSchema>;
 
 export interface ReceiptResult {
+  receiptId:            string;
   receipt:              ReceiptData;
   lineItemSumValid:     boolean;
   lineItemSum:          number;

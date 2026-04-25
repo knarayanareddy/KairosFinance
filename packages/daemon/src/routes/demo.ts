@@ -83,12 +83,74 @@ const SEED: SeedRow[] = [
 ];
 
 import { v4 as uuidv4 } from 'uuid';
+import type { BunqClient } from '../bunq/client.js';
 
 export async function registerDemoRoute(
   fastify: FastifyInstance,
   triggerTick?: () => Promise<void>,
   getAID?: () => number,
+  client?: BunqClient,
 ): Promise<void> {
+  // ─── Top up Sandbox ───
+  fastify.post('/api/demo/topup', async (_req, reply) => {
+    if (!client) return reply.status(500).send({ error: 'BunqClient not available' });
+    
+    try {
+      const baseUrl = process.env['BUNQ_SANDBOX_URL'] ?? 'https://public-api.sandbox.bunq.com/v1';
+      const session = client.session;
+      
+      console.log('[demo] Attempting sandbox top-up via Sugar Daddy...');
+
+      // 1. Get Accounts
+      const accRes = await fetch(`${baseUrl}/user/${session.userId}/monetary-account`, {
+        headers: { 'X-Bunq-Client-Authentication': session.sessionToken }
+      });
+      const accData = await accRes.json();
+      const account = accData.Response?.[0];
+      const accountId = account?.MonetaryAccountBank?.id || account?.MonetaryAccountSavings?.id;
+
+      if (!accountId) throw new Error('No monetary account found for top-up');
+
+      // 2. Request from Sugar Daddy
+      const reqRes = await fetch(`${baseUrl}/user/${session.userId}/monetary-account/${accountId}/request-inquiry`, {
+        method: 'POST',
+        headers: {
+          'X-Bunq-Client-Authentication': session.sessionToken,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          amount_inquired: { value: '500.00', currency: 'EUR' },
+          counterparty_alias: {
+            type: 'EMAIL',
+            value: 'sugardaddy@bunq.com',
+            name: 'Sugar Daddy'
+          },
+          description: 'Demo Funding',
+          allow_bunqme: true
+        })
+      });
+
+      if (!reqRes.ok) {
+        const err = await reqRes.text();
+        throw new Error(`Sugar Daddy rejected: ${err}`);
+      }
+
+      console.log(`[demo] Sugar Daddy request sent for account ${accountId}`);
+      
+      // Force a tick to refresh the balance in the UI
+      if (triggerTick) {
+        setTimeout(() => {
+          void triggerTick!().catch(err => console.error('[demo] Top-up tick failed:', err));
+        }, 500);
+      }
+
+      return reply.send({ ok: true });
+    } catch (err: any) {
+      console.error('[demo] Top-up failed:', err.message);
+      return reply.status(500).send({ error: err.message });
+    }
+  });
+
   fastify.post('/api/demo/reset', async (_req: FastifyRequest, reply: FastifyReply) => {
     const db = getDb();
     const AID = getAID?.() ?? 1;

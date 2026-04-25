@@ -1,4 +1,4 @@
-import type { BUNQSYScore } from '@bunqsy/shared';
+import type { BUNQSYScore, ScoreEmotion } from '@bunqsy/shared';
 
 interface Props {
   score: BUNQSYScore | null;
@@ -6,6 +6,13 @@ interface Props {
 
 const RADIUS = 80;
 const CIRCUMFERENCE = 2 * Math.PI * RADIUS;
+
+const EMOTION_CONFIG: Record<ScoreEmotion, { label: string; color: string; glow: string }> = {
+  THRIVING: { label: '✦ THRIVING', color: '#00ff95', glow: 'rgba(0,255,149,0.35)' },
+  CALM:     { label: '◎ CALM',     color: '#00bfff', glow: 'rgba(0,191,255,0.35)' },
+  ALERT:    { label: '⚡ ALERT',   color: '#f59e0b', glow: 'rgba(245,158,11,0.35)' },
+  ANXIOUS:  { label: '⚠ ANXIOUS', color: '#ef4444', glow: 'rgba(239,68,68,0.35)' },
+};
 
 function trendArrow(trend: 'up' | 'down' | 'flat'): string {
   if (trend === 'up') return '↑';
@@ -112,6 +119,20 @@ export function BUNQSYScore({ score }: Props): React.JSX.Element {
         <span style={{ ...styles.trendBadge, color: trendColor(trend), borderColor: trendColor(trend) }}>
           {trendArrow(trend)} {trend.toUpperCase()}
         </span>
+        {score?.emotion && (() => {
+          const ec = EMOTION_CONFIG[score.emotion];
+          return (
+            <span style={{
+              ...styles.trendBadge,
+              color: ec.color,
+              borderColor: ec.color,
+              boxShadow: `0 0 10px ${ec.glow}`,
+              animation: 'glowPulse 3s ease-in-out infinite',
+            }}>
+              {ec.label}
+            </span>
+          );
+        })()}
       </div>
 
       {score && (
@@ -193,6 +214,8 @@ const styles: Record<string, React.CSSProperties> = {
   trendRow: {
     display: 'flex',
     justifyContent: 'center',
+    gap: 8,
+    flexWrap: 'wrap' as const,
   },
   trendBadge: {
     fontSize: '0.7rem',

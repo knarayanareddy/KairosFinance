@@ -1,4 +1,5 @@
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify';
+import { randomUUID } from 'crypto';
 import { getDb } from '../memory/db.js';
 import { extractReceipt } from '../receipt/extractor.js';
 import { verifyLineItems } from '../receipt/verifier.js';
@@ -50,7 +51,27 @@ export async function registerReceiptRoute(fastify: FastifyInstance): Promise<vo
     const db = getDb();
     const { matched, matchedTransactionId, insight } = categorizeReceipt(db, receipt);
 
+    // ── Step 4: Persist receipt ────────────────────────────────────────────────
+    const receiptId = randomUUID();
+    db.prepare(`
+      INSERT INTO receipts
+        (id, merchant, total, currency, date, category, line_items, confidence, matched_tx_id, insight)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `).run(
+      receiptId,
+      receipt.merchant,
+      receipt.total,
+      receipt.currency,
+      receipt.date,
+      receipt.category,
+      JSON.stringify(receipt.lineItems),
+      receipt.confidence,
+      matchedTransactionId,
+      insight,
+    );
+
     const result: ReceiptResult = {
+      receiptId,
       receipt,
       lineItemSumValid,
       lineItemSum,
@@ -61,4 +82,42 @@ export async function registerReceiptRoute(fastify: FastifyInstance): Promise<vo
 
     return reply.send(result);
   });
+
+  // ── POST /api/receipt/:id/log-expense ─────────────────────────────────────
+  // Manually logs a scanned receipt as a transaction when no auto-match was found.
+  fastify.post(
+    '/api/receipt/:id/log-expense',
+    async (req: FastifyRequest<{ Params: { id: string } }>, reply: FastifyReply) => {
+      const db = getDb();
+      const row = db
+        .prepare(`SELECT * FROM receipts WHERE id = ?`)
+        .get(req.params.id) as {
+          id: string; merchant: string; total: number; currency: string;
+          date: string; category: string; logged_expense: number;
+        } | undefined;
+
+      if (!row) return reply.status(404).send({ error: 'Receipt not found' });
+      if (row.logged_expense) return reply.send({ alreadyLogged: true });
+
+      // Insert as a manual (non-bunq) transaction with a negative amount (debit)
+      const txId = `receipt-${row.id}`;
+      db.prepare(`
+        INSERT OR IGNORE INTO transactions
+          (id, bunq_account_id, amount, currency, counterparty_name, description, category, created_at)
+        VALUES (?, 0, ?, ?, ?, ?, ?, ?)
+      `).run(
+        txId,
+        -Math.abs(row.total),
+        row.currency,
+        row.merchant,
+        `Receipt scan — ${row.merchant}`,
+        row.category,
+        row.date + 'T12:00:00Z',
+      );
+
+      db.prepare(`UPDATE receipts SET logged_expense = 1 WHERE id = ?`).run(row.id);
+
+      return reply.send({ logged: true, transactionId: txId });
+    },
+  );
 }

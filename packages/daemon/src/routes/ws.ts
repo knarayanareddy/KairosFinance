@@ -2,6 +2,7 @@ import type { FastifyInstance, FastifyRequest } from 'fastify';
 import fastifyWebSocket from '@fastify/websocket';
 import type { WebSocket } from 'ws';
 import type { WSMessage } from '@bunqsy/shared';
+import { getLastScore } from '../state.js';
 
 // ─── Client registry ──────────────────────────────────────────────────────────
 
@@ -36,7 +37,13 @@ export async function registerWsRoute(fastify: FastifyInstance): Promise<void> {
       socket.on('close', () => { clients.delete(socket); });
       socket.on('error', () => { clients.delete(socket); });
 
-      // Acknowledge connection immediately
+      // Push last known score immediately so new clients don't wait for next tick
+      const lastScore = getLastScore();
+      if (lastScore) {
+        socket.send(JSON.stringify({ type: 'score_update', payload: lastScore } satisfies WSMessage));
+      }
+
+      // Acknowledge connection
       socket.send(JSON.stringify({
         type:    'tick',
         payload: { tickId: 'connect', timestamp: new Date().toISOString() },

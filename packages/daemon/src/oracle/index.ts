@@ -7,6 +7,7 @@ import { run as patternMatcher }      from './agents/pattern-matcher.js';
 import { run as subscriptionWatcher } from './agents/subscription-watcher.js';
 import { run as rentProximityGuard }  from './agents/rent-proximity-guard.js';
 import { run as fraudShadow }         from './agents/fraud-shadow.js';
+import { run as jarOptimizer }        from './agents/jar-optimizer.js';
 import { aggregate }                  from './aggregator.js';
 
 type AgentFn = () => Promise<OracleVote>;
@@ -32,6 +33,7 @@ export function createOracle(
       () => subscriptionWatcher(snapshot, db),
       () => rentProximityGuard(snapshot, db),
       () => fraudShadow(snapshot, db),
+      () => jarOptimizer(snapshot, db),
     ];
 
     // Launch all agents concurrently.
